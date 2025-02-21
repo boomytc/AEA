@@ -6,6 +6,7 @@ import soundfile as sf
 from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor
 from feature_extract import extract_features
+import sys
 
 def analyze_audio_segment(segment, sr, model, scaler, start_time):
     """
@@ -145,8 +146,12 @@ def predict_audio_events(
     
     return merged_predictions
 
-if __name__ == "__main__":
-    # 测试音频文件
-    # audio_file = "/media/fl01/data01/音视频/噪声素材/噪声文件/SONY_R_TX-MC.wav"
-    audio_file = "/home/fl01/下载/TC-MC-FX-MC-TC.wav"
+def main():
+    if len(sys.argv) > 1:
+        audio_file = sys.argv[1]
+    else:
+        audio_file = "/home/fl01/下载/TC-MC-FX-MC-TC.wav"
     predict_audio_events(audio_file)
+
+if __name__ == "__main__":
+    main()

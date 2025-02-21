@@ -1,0 +1,3 @@
+models/audio_event_model_segments.pkl
+models/feature_scaler_segments.pkl
+__pycache__/feature_extract.cpython-310.pyc
