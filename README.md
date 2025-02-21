@@ -92,11 +92,11 @@ python events_guess.py /path/to/your/audio.wav
 .
 ├── README.md
 ├── requirements.txt
-├── feature_extract.py    # 特征提取模块
-├── train.py             # 模型训练模块
-├── events_guess.py      # 事件检测模块
+├── feature_extract.py  # 特征提取模块
+├── train.py            # 模型训练模块
+├── events_guess.py     # 事件检测模块
 ├── models/             # 保存训练模型
-└── temp/              # 临时文件目录
+└── temp/               # 临时文件目录
 ```
 
 ## 注意事项
