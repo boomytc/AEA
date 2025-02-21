@@ -11,6 +11,11 @@
 - 提供置信度评估
 - 轻量级依赖
 
+## 系统要求
+
+- Python 3.8+
+- Linux/macOS/Windows
+
 ## 安装
 
 1. 克隆仓库：
@@ -30,85 +35,109 @@ conda activate AEA
 pip install -r requirements.txt
 ```
 
-4. 创建必要的目录：
-```bash
-mkdir temp models
-```
+## 特征提取
+
+系统使用以下音频特征进行事件检测：
+
+1. MFCC（梅尔频率倒谱系数）
+   - 捕捉音频的音色特征
+   - 使用13个系数
+   - 包含均值和标准差统计量
+
+2. 梅尔频谱
+   - 表示音频的频率特征
+   - 使用40个梅尔频带
+   - 包含均值和标准差统计量
+
+3. 光谱对比度
+   - 捕捉音频的动态特征
+   - 使用6个频带
+   - 包含均值和标准差统计量
+
+4. 零交叉率（ZCR）
+   - 作为音高的替代特征
+   - 反映信号的频率变化
+   - 包含均值和标准差统计量
+
+5. RMS能量
+   - 作为响度的替代特征
+   - 反映信号的能量变化
+   - 包含均值和标准差统计量
 
 ## 使用方法
 
-### 1. 准备训练数据
+### 1. 准备数据
 
-创建包含音频文件路径和对应标签的数据列表文件 `data_list.txt`：
+创建一个`data_list.txt`文件，每行包含音频文件路径和对应的标签：
 ```
 /path/to/audio1.wav 停车
-/path/to/audio2.wav 慢车
+/path/to/audio2.wav 慢车到飞行
 /path/to/audio3.wav 飞行
 ```
 
 ### 2. 训练模型
 
+运行训练脚本：
 ```bash
 python train.py
 ```
 
-训练完成后，模型将保存在 `models` 目录下。
+训练完成后，模型和特征标准化器将保存在`models`目录下：
+- `models/audio_event_model_segments.pkl`：分类模型
+- `models/feature_scaler_segments.pkl`：特征标准化器
 
-### 3. 检测事件
+### 3. 预测音频状态
 
-```bash
-python events_guess.py /path/to/your/audio.wav
+使用训练好的模型进行预测：
+```python
+from feature_extract import extract_features
+import joblib
+import numpy as np
+
+# 加载模型和标准化器
+model = joblib.load("models/audio_event_model_segments.pkl")
+scaler = joblib.load("models/feature_scaler_segments.pkl")
+
+# 提取特征
+audio_file = "test.wav"
+features = extract_features(audio_file)
+
+# 标准化特征
+features_scaled = scaler.transform(features.reshape(1, -1))
+
+# 预测
+prediction = model.predict(features_scaled)
+probabilities = model.predict_proba(features_scaled)
+confidence = np.max(probabilities)
+
+print(f"预测状态: {prediction[0]}")
+print(f"置信度: {confidence:.2%}")
 ```
-
-## 系统架构
-
-- `feature_extract.py`: 特征提取模块
-  - MFCC特征
-  - 频谱特征
-  - 时域特征
-  
-- `train.py`: 模型训练模块
-  - 多进程特征提取
-  - RandomForest分类器
-  - 模型评估
-  
-- `events_guess.py`: 事件检测模块
-  - 滑动窗口分析
-  - 状态转换检测
-  - 置信度评估
 
 ## 性能指标
 
-- 准确率：86%
-- 处理速度：支持实时检测
-- 各状态识别效果：
-  - 停车：精确率100%
-  - 慢车：精确率75%
-  - 飞行：精确率100%
+当前模型在测试集上的表现：
 
-## 目录结构
+| 状态 | 准确率 | 召回率 | F1分数 |
+|------|--------|--------|--------|
+| 停车 | 100%   | 50%    | 67%    |
+| 慢车 | 75%    | 100%   | 86%    |
+| 飞行 | 100%   | 100%   | 100%   |
 
-```
-.
-├── README.md
-├── requirements.txt
-├── feature_extract.py  # 特征提取模块
-├── train.py            # 模型训练模块
-├── events_guess.py     # 事件检测模块
-├── models/             # 保存训练模型
-└── temp/               # 临时文件目录
-```
+总体准确率：86%
 
 ## 注意事项
 
-1. 确保有足够的磁盘空间用于临时文件
-2. 建议使用多核CPU以发挥多进程优势
-3. 音频文件支持格式：WAV（推荐44.1kHz，16bit）
+1. 音频文件要求：
+   - 支持常见音频格式（wav, mp3, flac等）
+   - 建议使用无损格式（如wav）以获得最佳效果
+   - 采样率会自动调整为22050Hz
 
-## 许可证
+2. 内存使用：
+   - 特征提取过程会并行处理
+   - 建议为大量音频处理预留足够内存
 
-MIT License
+3. 模型限制：
+   - 当前模型针对特定场景优化
+   - 对于新的音频类型可能需要重新训练
 
-## 贡献
-
-欢迎提交Issue和Pull Request来帮助改进项目。
