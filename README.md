@@ -15,16 +15,14 @@
 
 1. 克隆仓库：
 ```bash
-git clone https://github.com/your-username/audio-event-detection.git
-cd audio-event-detection
+git clone https://github.com/boomytc/AEA.git
+cd AEA
 ```
 
 2. 创建并激活虚拟环境（推荐）：
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或
-venv\Scripts\activate  # Windows
+conda create -n AEA python=3.10 -y
+conda activate AEA
 ```
 
 3. 安装依赖：
