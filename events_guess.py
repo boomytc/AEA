@@ -7,6 +7,7 @@ from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor
 from feature_extract import extract_features
 import sys
+import time  # 添加此导入
 
 def analyze_audio_segment(segment, sr, model, scaler, start_time):
     """
@@ -90,6 +91,8 @@ def predict_audio_events(
     返回：
         检测到的事件列表，每个事件包含：(事件类型, 开始时间, 结束时间, 置信度)
     """
+    start_time = time.time()  # 开始计时
+    
     # 检查文件是否存在
     if not os.path.exists(audio_file):
         print(f"错误：音频文件不存在 {audio_file}")
@@ -144,13 +147,17 @@ def predict_audio_events(
     for event, start, end, confidence in merged_predictions:
         print(f"事件: {event}, 开始时间: {start:.2f}s, 结束时间: {end:.2f}s, 置信度: {confidence:.2%}")
     
+    end_time = time.time()  # 结束计时
+    print(f"\n总执行时间: {end_time - start_time:.2f}秒")
+    
     return merged_predictions
 
 def main():
     if len(sys.argv) > 1:
         audio_file = sys.argv[1]
     else:
-        audio_file = "/home/fl01/下载/TC-MC-FX-MC-TC.wav"
+        print("请输入音频文件路径")
+        sys.exit(1)
     predict_audio_events(audio_file)
 
 if __name__ == "__main__":

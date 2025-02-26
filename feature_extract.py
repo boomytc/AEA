@@ -4,6 +4,7 @@ import os
 import sys
 from typing import List, Tuple
 import soundfile as sf
+import time  # 添加此导入
 
 def extract_features(audio_file: str, n_mfcc: int = 13, n_mels: int = 40) -> np.ndarray:
     """
@@ -17,6 +18,7 @@ def extract_features(audio_file: str, n_mfcc: int = 13, n_mels: int = 40) -> np.
     返回:
         包含所有特征的numpy数组
     """
+    start_time = time.time()  # 开始计时
     try:
         print(f"正在处理文件: {audio_file}")
         # 加载音频，使用较低的采样率以减少计算量
@@ -92,6 +94,7 @@ def extract_features(audio_file: str, n_mfcc: int = 13, n_mels: int = 40) -> np.
         ])
         
         # print("特征提取完成")
+        print(f"特征提取耗时: {time.time() - start_time:.2f}秒")
         return features
     except Exception as e:
         print(f"特征提取过程中出错: {str(e)}")
@@ -108,6 +111,7 @@ def extract_features_with_segments(audio_file: str, segment_duration: float = 1.
     返回:
         每个段的特征列表
     """
+    start_time = time.time()  # 开始计时
     try:
         # 加载音频
         y, sr = librosa.load(audio_file, sr=None, mono=True)
@@ -149,14 +153,20 @@ def extract_features_with_segments(audio_file: str, segment_duration: float = 1.
                 except:
                     pass
         
+        print(f"分段特征提取总耗时: {time.time() - start_time:.2f}秒")
         return features_list
     except Exception as e:
         print(f"分段特征提取过程中出错: {str(e)}")
         raise
 
 if __name__ == "__main__":
+    total_start_time = time.time()  # 总计时开始
     try:
-        audio_file = "/media/fl01/data01/音视频/噪声素材/噪声文件/BK_R_TC-MC.wav"
+        if len(sys.argv) > 1:
+            audio_file = sys.argv[1]
+        else:
+            print("请输入音频文件路径")
+            sys.exit(1)
         
         if not os.path.exists(audio_file):
             print(f"错误：音频文件不存在: {audio_file}")
@@ -165,6 +175,8 @@ if __name__ == "__main__":
         features = extract_features(audio_file)
         print("特征维度:", features.shape)
         print("特征值:", features)
+        
+        print(f"程序总执行时间: {time.time() - total_start_time:.2f}秒")
     except Exception as e:
         print(f"程序执行出错: {str(e)}")
         sys.exit(1)

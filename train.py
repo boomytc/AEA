@@ -12,6 +12,7 @@ import soundfile as sf
 from typing import List, Tuple, Dict
 import logging
 import multiprocessing
+import time  # 添加此导入
 
 def split_transition_audio(audio_file, label):
     """分割转换音频"""
@@ -71,6 +72,8 @@ def load_dataset_from_file(data_list_file: str, num_processes: int = None) -> Tu
         data_list_file: 数据列表文件路径
         num_processes: 进程数，默认为CPU核心数-1
     """
+    start_time = time.time()  # 开始计时
+    
     if num_processes is None:
         num_processes = max(1, multiprocessing.cpu_count() - 1)
     
@@ -101,6 +104,7 @@ def load_dataset_from_file(data_list_file: str, num_processes: int = None) -> Tu
     X = np.array(features_all)
     y = np.array(labels_all)
     
+    print(f"\n特征提取总耗时: {time.time() - start_time:.2f}秒")
     return X, y
 
 def prepare_dataset(data_list_file: str) -> Tuple[np.ndarray, np.ndarray, object]:
@@ -126,6 +130,7 @@ def train_model(X, y, model_path="models/audio_event_model_segments.pkl"):
     """
     训练随机森林模型并保存
     """
+    start_time = time.time()  # 开始计时
     print("\n开始训练模型...")
     
     # 分割训练集和测试集
@@ -144,9 +149,12 @@ def train_model(X, y, model_path="models/audio_event_model_segments.pkl"):
     joblib.dump(model, model_path)
     print(f"\n模型已保存到: {model_path}")
     
+    print(f"\n模型训练总耗时: {time.time() - start_time:.2f}秒")
     return model
 
 if __name__ == "__main__":
+    total_start_time = time.time()  # 总计时开始
+    
     # 设置日志级别
     logging.basicConfig(level=logging.INFO)
     
@@ -155,3 +163,5 @@ if __name__ == "__main__":
     
     # 训练模型
     model = train_model(X_scaled, y)
+    
+    print(f"\n整个训练流程总耗时: {time.time() - total_start_time:.2f}秒")
