@@ -14,7 +14,7 @@ def build_project():
         shutil.rmtree('dist')
     
     # 使用PyInstaller构建
-    subprocess.run(['pyinstaller', 'audio_analyzer.spec'])
+    subprocess.run(['pyinstaller', 'tools/audio_analyzer.spec'])
     
     # 创建发布目录
     release_dir = 'release'

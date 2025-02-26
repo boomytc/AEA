@@ -6,9 +6,9 @@ import subprocess
 from pathlib import Path
 
 class OfflinePackageBuilder:
-    def __init__(self, config_file='package_config.json'):
+    def __init__(self, config_file='tools/package_config.json'):
         self.config_file = config_file
-        self.base_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+        self.base_dir = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.offline_dir = self.base_dir / 'offline_packages'
         self.python_dir = self.offline_dir / 'python_packages'
         self.ubuntu_dir = self.offline_dir / 'ubuntu_packages'

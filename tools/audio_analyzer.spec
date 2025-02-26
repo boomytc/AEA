@@ -25,7 +25,7 @@ hidden_imports = [
 
 # 特征提取工具
 a1 = Analysis(
-    ['feature_extract.py'],
+    ['../feature_extract.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -42,7 +42,7 @@ a1 = Analysis(
 
 # 事件检测工具
 a2 = Analysis(
-    ['events_guess.py'],
+    ['../events_guess.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -59,7 +59,7 @@ a2 = Analysis(
 
 # 模型训练工具
 a3 = Analysis(
-    ['train.py'],
+    ['../train.py'],
     pathex=[],
     binaries=[],
     datas=[],
