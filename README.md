@@ -90,7 +90,7 @@ python train.py
 
 使用训练好的模型进行预测：
 ```python
-from feature_extract import extract_features
+from utils.feature_extract import extract_features
 import joblib
 import numpy as np
 

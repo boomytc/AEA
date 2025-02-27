@@ -5,16 +5,16 @@ import joblib
 import soundfile as sf
 from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor
-from feature_extract import extract_features
+from utils.feature_extract import extract_features
 import sys
-import time  # 添加此导入
+import time  
 
-def analyze_audio_segment(segment, sr, model, scaler, start_time):
+def analyze_audio_segment(segment, sr, model, scaler, segment_start_time):
     """
     分析音频片段并返回预测结果
     """
     # 保存临时音频段
-    temp_file = f"temp/temp_segment_{start_time}.wav"
+    temp_file = f"temp/temp_segment_{segment_start_time}.wav"
     try:
         sf.write(temp_file, segment, sr)
         # 提取特征
@@ -91,7 +91,7 @@ def predict_audio_events(
     返回：
         检测到的事件列表，每个事件包含：(事件类型, 开始时间, 结束时间, 置信度)
     """
-    start_time = time.time()  # 开始计时
+    process_start_time = time.time()  # 开始计时
     
     # 检查文件是否存在
     if not os.path.exists(audio_file):
@@ -121,23 +121,23 @@ def predict_audio_events(
         # 提交所有分析任务
         futures = []
         for start_sample in range(0, len(y) - window_samples, hop_samples):
-            start_time = start_sample / sr
+            segment_start_time = start_sample / sr
             segment = y[start_sample:start_sample + window_samples]
-            future = executor.submit(analyze_audio_segment, segment, sr, model, scaler, start_time)
-            futures.append((start_time, future))
+            future = executor.submit(analyze_audio_segment, segment, sr, model, scaler, segment_start_time)
+            futures.append((segment_start_time, future))
         
         # 收集预测结果
         window_predictions = []
-        for start_time, future in futures:
+        for segment_start_time, future in futures:
             try:
                 prediction, confidence = future.result()
-                print(f"时间窗口 {start_time:.1f}s - {start_time + window_size:.1f}s:")
+                print(f"时间窗口 {segment_start_time:.1f}s - {segment_start_time + window_size:.1f}s:")
                 print(f"  预测事件: {prediction}")
                 print(f"  置信度: {confidence:.2%}")
                 if confidence >= confidence_threshold:
-                    window_predictions.append((prediction, start_time, start_time + window_size, confidence))
+                    window_predictions.append((prediction, segment_start_time, segment_start_time + window_size, confidence))
             except Exception as e:
-                print(f"处理时间窗口 {start_time:.1f}s 时出错: {str(e)}")
+                print(f"处理时间窗口 {segment_start_time:.1f}s 时出错: {str(e)}")
     
     # 合并相邻的相同预测
     merged_predictions = merge_predictions(window_predictions)
@@ -147,8 +147,8 @@ def predict_audio_events(
     for event, start, end, confidence in merged_predictions:
         print(f"事件: {event}, 开始时间: {start:.2f}s, 结束时间: {end:.2f}s, 置信度: {confidence:.2%}")
     
-    end_time = time.time()  # 结束计时
-    print(f"\n总执行时间: {end_time - start_time:.2f}秒")
+    process_end_time = time.time()  # 结束计时
+    print(f"\n总执行时间: {process_end_time - process_start_time:.2f}秒")
     
     return merged_predictions
 

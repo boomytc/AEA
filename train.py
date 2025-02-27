@@ -7,12 +7,12 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 import librosa
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from feature_extract import extract_features, extract_features_with_segments
+from utils.feature_extract import extract_features, extract_features_with_segments
 import soundfile as sf
 from typing import List, Tuple, Dict
 import logging
 import multiprocessing
-import time  # 添加此导入
+import time  
 
 def split_transition_audio(audio_file, label):
     """分割转换音频"""
