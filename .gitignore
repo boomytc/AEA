@@ -5,3 +5,4 @@ __pycache__/feature_extract.cpython-310.pyc
 data/txt.txt
 data/list_train.txt
 data/list_label.txt
+*.pyc

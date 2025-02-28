@@ -2,30 +2,38 @@ import numpy as np
 import librosa
 import os
 import sys
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import soundfile as sf
 import time  
+import io
 
-def extract_features(audio_file: str, n_mfcc: int = 13, n_mels: int = 40) -> np.ndarray:
+def extract_features(audio_input: Union[str, io.BytesIO], n_mfcc: int = 13, n_mels: int = 40) -> np.ndarray:
     """
-    提取音频特征，包括MFCC、梅尔频谱、光谱对比度、零交叉率和RMS能量
+    提取音频特征，支持文件路径或内存缓冲区输入
     
     参数:
-        audio_file: 音频文件路径
+        audio_input: 音频文件路径或BytesIO对象
         n_mfcc: MFCC特征数量
         n_mels: 梅尔频谱特征数量
     
     返回:
         包含所有特征的numpy数组
     """
-    start_time = time.time()  # 开始计时
+    start_time = time.time()
     try:
-        print(f"正在处理文件: {audio_file}")
-        # 加载音频，使用较低的采样率以减少计算量
-        y, sr = librosa.load(audio_file, sr=22050, mono=True)
-        
+        # 根据输入类型选择不同的加载方式
+        if isinstance(audio_input, str):
+            y, sr = librosa.load(audio_input, sr=22050, mono=True)
+        else:
+            # 从内存缓冲区读取
+            y, sr = sf.read(audio_input)
+            # 重采样到22050Hz
+            if sr != 22050:
+                y = librosa.resample(y, orig_sr=sr, target_sr=22050)
+                sr = 22050
+
         if len(y) == 0:
-            raise ValueError("音频文件为空或无法读取")
+            raise ValueError("音频数据为空或无法读取")
 
         # 使用较大的hop_length来减少计算量
         hop_length = 1024

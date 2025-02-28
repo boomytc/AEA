@@ -9,6 +9,7 @@ from utils.feature_extract import extract_features
 from events_guess import predict_audio_events
 import tempfile
 import matplotlib
+import io
 matplotlib.use('Agg')  # 必须在导入 pyplot 之前设置后端
 
 # 设置matplotlib样式
@@ -63,6 +64,35 @@ def main():
         layout="wide"
     )
 
+    # 添加侧边栏
+    st.sidebar.title("参数设置")
+    window_size = st.sidebar.slider(
+        "窗口大小 (秒)",
+        min_value=0.5,
+        max_value=5.0,
+        value=1.0,
+        step=0.1,
+        help="音频分析的时间窗口大小"
+    )
+    
+    hop_length = st.sidebar.slider(
+        "滑动步长 (秒)",
+        min_value=0.1,
+        max_value=2.0,
+        value=0.5,
+        step=0.1,
+        help="连续窗口之间的时间间隔"
+    )
+    
+    confidence_threshold = st.sidebar.slider(
+        "置信度阈值",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.5,
+        step=0.05,
+        help="事件检测的置信度阈值"
+    )
+
     st.title("音频事件分析系统")
     st.write("上传音频文件进行分析")
 
@@ -70,31 +100,35 @@ def main():
     uploaded_file = st.file_uploader("选择音频文件", type=['wav', 'mp3'])
 
     if uploaded_file is not None:
-        # 创建进度条
         progress_bar = st.progress(0)
         status_text = st.empty()
 
         try:
-            # 保存上传的文件
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
-                temp_file.write(uploaded_file.read())
-                temp_path = temp_file.name
-
+            # 直接在内存中处理上传的文件
+            audio_bytes = uploaded_file.read()
+            audio_buffer = io.BytesIO(audio_bytes)
+            
             status_text.text("正在加载音频...")
             progress_bar.progress(20)
 
-            # 加载音频文件
-            y, sr = librosa.load(temp_path)
+            # 从内存缓冲区加载音频文件
+            y, sr = librosa.load(audio_buffer, sr=None)
             duration = librosa.get_duration(y=y, sr=sr)
             
-            status_text.text("正在生成可视化图表...")
-            progress_bar.progress(40)
-
-            # 进行事件检测
+            # 重置缓冲区位置
+            audio_buffer.seek(0)
+            
             status_text.text("正在进行事件检测...")
             progress_bar.progress(60)
-            events = predict_audio_events(temp_path)
             
+            # 直接传递内存缓冲区进行事件检测
+            events = predict_audio_events(
+                audio_buffer,
+                window_size=window_size,
+                hop_length=hop_length,
+                confidence_threshold=confidence_threshold
+            )
+
             # 使用列布局优化显示效果
             col1, col2 = st.columns([2, 1])
             
@@ -148,13 +182,10 @@ def main():
             status_text.text("分析完成！")
             progress_bar.progress(100)
 
-            # 清理临时文件
-            os.unlink(temp_path)
-
         except Exception as e:
             st.error(f"处理过程中出错: {str(e)}")
-            if 'temp_path' in locals():
-                os.unlink(temp_path)
+        finally:
+            audio_buffer.close()
 
 if __name__ == "__main__":
     main()

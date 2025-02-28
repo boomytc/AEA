@@ -8,17 +8,20 @@ from concurrent.futures import ThreadPoolExecutor
 from utils.feature_extract import extract_features
 import sys
 import time  
+import io
 
 def analyze_audio_segment(segment, sr, model, scaler, segment_start_time):
     """
     分析音频片段并返回预测结果
     """
-    # 保存临时音频段
-    temp_file = f"temp/temp_segment_{segment_start_time}.wav"
+    # 使用内存缓冲区代替临时文件
+    buffer = io.BytesIO()
     try:
-        sf.write(temp_file, segment, sr)
-        # 提取特征
-        features = extract_features(temp_file)
+        sf.write(buffer, segment, sr, format='WAV')
+        buffer.seek(0)
+        
+        # 提取特征（需要修改feature_extract以支持从内存读取）
+        features = extract_features(buffer)
         features = features.reshape(1, -1)
         # 标准化特征
         features_scaled = scaler.transform(features)
@@ -28,8 +31,7 @@ def analyze_audio_segment(segment, sr, model, scaler, segment_start_time):
         max_prob = np.max(probabilities)
         return prediction, max_prob
     finally:
-        if os.path.exists(temp_file):
-            os.remove(temp_file)
+        buffer.close()
 
 def merge_predictions(predictions):
     """
@@ -71,9 +73,9 @@ def merge_predictions(predictions):
 
 def predict_audio_events(
     audio_file: str,
-    window_size: float = 4.0,  # 窗口大小（秒）
-    hop_length: float = 0.2,    # 窗口滑动步长（秒）
-    confidence_threshold: float = 0.4,  # 置信度阈值
+    window_size: float = 5.0,  # 窗口大小（秒）
+    hop_length: float = 2.0,    # 窗口滑动步长（秒）
+    confidence_threshold: float = 0.75,  # 置信度阈值
     model_path: str = "models/audio_event_model_segments.pkl",
     scaler_path: str = "models/feature_scaler_segments.pkl"
 ) -> List[Tuple[str, float, float, float]]:
