@@ -13,6 +13,7 @@ from typing import List, Tuple, Dict
 import logging
 import multiprocessing
 import time  
+import io
 
 def split_transition_audio(audio_file, label):
     """分割转换音频"""
@@ -36,7 +37,7 @@ def split_transition_audio(audio_file, label):
         return [(y, sr, label)]
 
 def process_audio_file(args):
-    """处理单个音频文件的函数（用于多进程）"""
+    """处理单个音频文件的函数（使用内存缓冲区）"""
     audio_file, label = args
     try:
         segments = split_transition_audio(audio_file, label)
@@ -44,20 +45,19 @@ def process_audio_file(args):
         labels_list = []
         
         for segment, sr, segment_label in segments:
-            # 保存临时音频段
-            temp_file = f"temp/temp_{multiprocessing.current_process().name}_{os.getpid()}.wav"
-            sf.write(temp_file, segment, sr)
-            
-            # 提取特征
-            features = extract_features(temp_file)
-            features_list.append(features)
-            labels_list.append(segment_label)
-            
-            # 清理临时文件
+            # 使用内存缓冲区
+            buffer = io.BytesIO()
             try:
-                os.remove(temp_file)
-            except:
-                pass
+                # 将音频数据写入内存缓冲区
+                sf.write(buffer, segment, sr, format='WAV')
+                buffer.seek(0)  # 重置缓冲区指针到开始位置
+                
+                # 直接从内存缓冲区提取特征
+                features = extract_features(buffer)
+                features_list.append(features)
+                labels_list.append(segment_label)
+            finally:
+                buffer.close()
                 
         return features_list, labels_list
     except Exception as e:
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     
     # 准备数据集
-    X_scaled, y, scaler = prepare_dataset("data_list.txt")
+    X_scaled, y, scaler = prepare_dataset("datasets/data_list.txt")
     
     # 训练模型
     model = train_model(X_scaled, y)
