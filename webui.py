@@ -100,92 +100,103 @@ def main():
     uploaded_file = st.file_uploader("选择音频文件", type=['wav', 'mp3'])
 
     if uploaded_file is not None:
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+        # 创建占位符
+        progress_placeholder = st.empty()  # 用于进度条
+        status_placeholder = st.empty()    # 用于状态文本
+        result_placeholder = st.empty()    # 用于结果显示
 
-        try:
-            # 直接在内存中处理上传的文件
-            audio_bytes = uploaded_file.read()
-            audio_buffer = io.BytesIO(audio_bytes)
-            
-            status_text.text("正在加载音频...")
-            progress_bar.progress(20)
+        # 添加开始检测按钮
+        if st.button("开始检测"):
+            try:
+                # 显示进度条和状态文本
+                progress_bar = progress_placeholder.progress(0)
+                status_text = status_placeholder.text("正在加载音频...")
 
-            # 从内存缓冲区加载音频文件
-            y, sr = librosa.load(audio_buffer, sr=None)
-            duration = librosa.get_duration(y=y, sr=sr)
-            
-            # 重置缓冲区位置
-            audio_buffer.seek(0)
-            
-            status_text.text("正在进行事件检测...")
-            progress_bar.progress(60)
-            
-            # 直接传递内存缓冲区进行事件检测
-            events = predict_audio_events(
-                audio_buffer,
-                window_size=window_size,
-                hop_length=hop_length,
-                confidence_threshold=confidence_threshold
-            )
+                # 创建临时文件
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+                    # 保存上传的文件到临时文件
+                    temp_audio.write(uploaded_file.read())
+                    temp_audio_path = temp_audio.name
 
-            # 使用列布局优化显示效果
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                # 显示波形图
-                st.subheader("波形图")
+                progress_bar.progress(20)
+
+                # 从临时文件加载音频
+                y, sr = librosa.load(temp_audio_path, sr=None)
+                duration = librosa.get_duration(y=y, sr=sr)
+                
+                status_text.text("正在进行事件检测...")
+                progress_bar.progress(60)
+                
+                # 使用临时文件路径进行事件检测
+                events = predict_audio_events(
+                    temp_audio_path,
+                    window_size=window_size,
+                    hop_length=hop_length,
+                    confidence_threshold=confidence_threshold
+                )
+
+                # 删除临时文件
                 try:
-                    plt.close('all')  # 清除所有图形
-                    fig1 = plot_waveform(y, sr)
-                    st.pyplot(fig1)
-                    plt.close(fig1)
-                except Exception as e:
-                    st.error(f"波形图生成失败: {str(e)}")
+                    os.unlink(temp_audio_path)
+                except:
+                    pass
 
-                # 显示梅尔频谱图
-                st.subheader("梅尔频谱图")
-                try:
-                    plt.close('all')  # 清除所有图形
-                    fig2 = plot_melspectrogram(y, sr)
-                    st.pyplot(fig2)
-                    plt.close(fig2)
-                except Exception as e:
-                    st.error(f"梅尔频谱图生成失败: {str(e)}")
+                # 使用列布局优化显示效果
+                with result_placeholder.container():
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        # 显示波形图
+                        st.subheader("波形图")
+                        try:
+                            plt.close('all')
+                            fig1 = plot_waveform(y, sr)
+                            st.pyplot(fig1)
+                            plt.close(fig1)
+                        except Exception as e:
+                            st.error(f"波形图生成失败: {str(e)}")
 
-                # 显示MFCC特征图
-                st.subheader("MFCC特征图")
-                try:
-                    plt.close('all')  # 清除所有图形
-                    fig3 = plot_mfcc(y, sr)
-                    st.pyplot(fig3)
-                    plt.close(fig3)
-                except Exception as e:
-                    st.error(f"MFCC特征图生成失败: {str(e)}")
+                        # 显示梅尔频谱图
+                        st.subheader("梅尔频谱图")
+                        try:
+                            plt.close('all')
+                            fig2 = plot_melspectrogram(y, sr)
+                            st.pyplot(fig2)
+                            plt.close(fig2)
+                        except Exception as e:
+                            st.error(f"梅尔频谱图生成失败: {str(e)}")
 
-            with col2:
-                # 显示音频信息
-                st.subheader("音频信息")
-                st.write(f"采样率: {sr} Hz")
-                st.write(f"时长: {duration:.2f} 秒")
+                        # 显示MFCC特征图
+                        st.subheader("MFCC特征图")
+                        try:
+                            plt.close('all')
+                            fig3 = plot_mfcc(y, sr)
+                            st.pyplot(fig3)
+                            plt.close(fig3)
+                        except Exception as e:
+                            st.error(f"MFCC特征图生成失败: {str(e)}")
 
-                # 显示检测结果
-                st.subheader("事件检测结果")
-                if events:
-                    for event, start, end, confidence in events:
-                        with st.expander(f"事件: {event} ({confidence:.2%})"):
-                            st.write(f"开始时间: {start:.2f}秒")
-                            st.write(f"结束时间: {end:.2f}秒")
-                else:
-                    st.write("未检测到显著事件")
+                    with col2:
+                        # 显示音频信息
+                        st.subheader("音频信息")
+                        st.write(f"采样率: {sr} Hz")
+                        st.write(f"时长: {duration:.2f} 秒")
 
-            status_text.text("分析完成！")
-            progress_bar.progress(100)
+                        # 显示检测结果
+                        st.subheader("事件检测结果")
+                        if events:
+                            for event, start, end, confidence in events:
+                                with st.expander(f"事件: {event} ({confidence:.2%})"):
+                                    st.write(f"开始时间: {start:.2f}秒")
+                                    st.write(f"结束时间: {end:.2f}秒")
+                        else:
+                            st.write("未检测到显著事件")
 
-        except Exception as e:
-            st.error(f"处理过程中出错: {str(e)}")
-        finally:
-            audio_buffer.close()
+                status_text.text("分析完成！")
+                progress_bar.progress(100)
+
+            except Exception as e:
+                status_placeholder.error(f"处理过程中出错: {str(e)}")
 
 if __name__ == "__main__":
     main()
