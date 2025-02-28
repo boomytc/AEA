@@ -153,6 +153,168 @@ Web界面功能：
 - 显示事件检测结果和时间线
 - 提供音频播放功能
 
+## 脚本使用示例
+
+本节提供各个脚本的实际使用示例。
+
+### train.py - 模型训练
+
+```bash
+# 训练模型
+python train.py
+```
+
+train.py脚本会：
+- 从 datasets/data_list.txt 加载数据
+- 使用多进程并行提取音频特征
+- 训练随机森林分类器模型
+- 保存模型到 models/audio_event_model_segments.pkl
+- 保存特征标准化器到 models/feature_scaler_segments.pkl
+
+如需修改数据源或输出路径，需要直接编辑脚本中的相关变量：
+```python
+# 在prepare_dataset函数调用中修改数据列表文件路径
+X_scaled, y, scaler = prepare_dataset("datasets/data_list.txt")
+
+# 在train_model函数中修改模型输出路径
+model = train_model(X_scaled, y, model_path="models/audio_event_model_segments.pkl")
+```
+
+### events_guess.py - 事件预测
+
+```bash
+# 基本用法 - 预测单个音频文件
+python events_guess.py path/to/audio.wav
+```
+
+events_guess.py接受一个命令行参数：音频文件路径。默认使用以下参数：
+- 窗口大小：2.0秒
+- 滑动步长：2.0秒
+- 置信度阈值：0.6
+
+如需修改这些参数，需要直接调用predict_audio_events函数或编辑main函数：
+```python
+# 自定义参数示例
+from events_guess import predict_audio_events
+
+events = predict_audio_events(
+    "path/to/audio.wav",
+    window_size=1.0,  # 使用更小的窗口
+    hop_length=0.5,   # 使用更小的步长
+    confidence_threshold=0.7,    # 修改置信度阈值
+    model_path="models/my_model.pkl",
+    scaler_path="models/my_scaler.pkl"
+)
+```
+
+### webui.py - Web界面
+
+```bash
+# 启动Web界面
+streamlit run webui.py
+```
+
+Streamlit可以接受其他标准的配置参数，例如：
+```bash
+# 指定端口和地址
+streamlit run webui.py --server.port 8080 --server.address 0.0.0.0
+
+# 部署模式
+streamlit run webui.py --server.headless true
+```
+
+Web界面交互步骤:
+1. 打开浏览器访问显示的URL（默认为http://localhost:8501）
+2. 点击"上传音频文件"按钮选择音频文件
+3. 调整侧边栏中的参数（窗口大小、滑动步长、置信度阈值）
+4. 点击"开始分析"按钮进行事件检测
+5. 查看结果区域中的波形图、频谱图和事件时间线
+
+### 特征提取模块 (utils/feature_extract.py)
+
+在Python代码中使用特征提取模块:
+
+```python
+# 导入模块
+from utils.feature_extract import extract_features, extract_features_with_segments
+
+# 从文件提取特征
+audio_file = "path/to/audio.wav"
+features = extract_features(audio_file)
+print(f"提取的特征维度: {features.shape}")
+
+# 从内存缓冲区提取特征
+import io
+import soundfile as sf
+import librosa
+
+# 加载音频
+y, sr = librosa.load("path/to/audio.wav", sr=22050)
+
+# 创建内存缓冲区
+buffer = io.BytesIO()
+sf.write(buffer, y, sr, format='WAV')
+buffer.seek(0)
+
+# 从缓冲区提取特征
+features_from_buffer = extract_features(buffer)
+
+# 分段提取特征
+segment_features = extract_features_with_segments(audio_file, segment_duration=1.0)
+print(f"分段特征数量: {len(segment_features)}")
+```
+
+### 自定义实现示例
+
+如果你想修改现有功能或实现自定义处理流程，可以集成使用项目中的函数：
+
+```python
+import sys
+sys.path.append("/path/to/AEA")  # 添加项目根目录到路径
+
+# 导入项目中的函数
+from utils.feature_extract import extract_features
+from events_guess import predict_audio_events, merge_predictions
+
+# 1. 自定义音频处理流程
+def process_custom_audio(audio_file, threshold=0.7):
+    # 使用自定义参数调用预测函数
+    events = predict_audio_events(
+        audio_file,
+        window_size=1.0,  # 使用更小的窗口
+        hop_length=0.5,   # 使用更小的步长
+        confidence_threshold=threshold
+    )
+    
+    # 检查预测结果
+    if events:
+        print(f"检测到 {len(events)} 个事件:")
+        for event, start, end, conf in events:
+            print(f"- {event}: {start:.2f}s 到 {end:.2f}s (置信度: {conf:.2%})")
+        return True
+    else:
+        print("未检测到显著事件")
+        return False
+
+# 2. 批量处理多个音频文件
+def batch_process(audio_files):
+    results = {}
+    for audio_file in audio_files:
+        print(f"处理: {audio_file}")
+        events = predict_audio_events(audio_file)
+        results[audio_file] = events
+    return results
+
+# 使用示例
+if __name__ == "__main__":
+    # 处理单个文件
+    process_custom_audio("test.wav")
+    
+    # 处理多个文件
+    files = ["file1.wav", "file2.wav", "file3.wav"]
+    results = batch_process(files)
+```
+
 ## 性能指标
 
 当前模型在测试集上的表现：
