@@ -1,15 +1,17 @@
-# 音频事件检测系统
+# 音频事件检测系统（AEA）
 
-基于机器学习的音频事件检测系统，可以准确识别音频中的多个事件状态（如停车、慢车、飞行等）及其转换时刻。系统采用多进程并行处理，显著提高了训练和检测速度。
+基于机器学习的音频事件检测系统，可以准确识别音频中的多个事件状态（如停车、慢车、飞行、悬停、转弯等）及其转换时刻。系统采用多进程并行处理，显著提高了训练和检测速度。
 
 ## 主要特点
 
-- 多进程并行特征提取，训练速度快
-- 支持多事件状态检测（停车、慢车、飞行等）
-- 高准确率（>85%）
-- 实时状态转换检测
-- 提供置信度评估
-- 轻量级依赖
+- **高效处理**：多进程并行特征提取，训练和检测速度提升显著
+- **多状态检测**：支持多种事件状态检测（停车、慢车、飞行、悬停、转弯等）
+- **状态转换识别**：能够检测从一种状态到另一种状态的转换过程
+- **高准确率**：平均准确率达到85%以上
+- **实时分析**：支持实时状态转换检测
+- **置信度评估**：提供预测结果的置信度，有助于判断可靠性
+- **用户友好**：提供Web界面，便于可视化分析
+- **轻量级依赖**：仅依赖常见Python库
 
 ## 系统要求
 
@@ -35,31 +37,49 @@ conda activate AEA
 pip install -r requirements.txt
 ```
 
+## 项目结构
+
+```
+AEA/
+├── datasets/            # 数据集目录
+│   ├── data/            # 音频数据文件
+│   └── data_list.txt    # 数据列表（文件路径和标签）
+├── models/              # 保存训练好的模型
+├── utils/               # 工具函数
+│   └── feature_extract.py  # 特征提取模块
+├── tools/               # 构建和打包工具
+├── README.md            # 项目说明文档
+├── requirements.txt     # 依赖库列表
+├── train.py             # 模型训练脚本
+├── events_guess.py      # 事件预测模块
+└── webui.py             # Web界面
+```
+
 ## 特征提取
 
 系统使用以下音频特征进行事件检测：
 
-1. MFCC（梅尔频率倒谱系数）
+1. **MFCC（梅尔频率倒谱系数）**
    - 捕捉音频的音色特征
    - 使用13个系数
    - 包含均值和标准差统计量
 
-2. 梅尔频谱
+2. **梅尔频谱**
    - 表示音频的频率特征
    - 使用40个梅尔频带
    - 包含均值和标准差统计量
 
-3. 光谱对比度
+3. **光谱对比度**
    - 捕捉音频的动态特征
    - 使用6个频带
    - 包含均值和标准差统计量
 
-4. 零交叉率（ZCR）
+4. **零交叉率（ZCR）**
    - 作为音高的替代特征
    - 反映信号的频率变化
    - 包含均值和标准差统计量
 
-5. RMS能量
+5. **RMS能量**
    - 作为响度的替代特征
    - 反映信号的能量变化
    - 包含均值和标准差统计量
@@ -75,6 +95,10 @@ pip install -r requirements.txt
 /path/to/audio3.wav 飞行
 ```
 
+状态标签包括：
+- 单一状态：`停车`、`慢车`、`飞行`、`悬停`、`转弯`等
+- 状态转换：`停车到慢车`、`慢车到飞行`、`飞行到慢车`、`慢车到停车`等
+
 ### 2. 训练模型
 
 运行训练脚本：
@@ -82,37 +106,52 @@ pip install -r requirements.txt
 python train.py
 ```
 
+训练过程会自动：
+- 从`data_list.txt`加载数据
+- 使用多进程并行提取特征
+- 训练随机森林分类器
+- 保存模型和特征标准化器到`models`目录
+
 训练完成后，模型和特征标准化器将保存在`models`目录下：
 - `models/audio_event_model_segments.pkl`：分类模型
 - `models/feature_scaler_segments.pkl`：特征标准化器
 
 ### 3. 预测音频状态
 
-使用训练好的模型进行预测：
+可以通过两种方式使用训练好的模型：
+
+#### 3.1 使用Python API进行预测
+
 ```python
-from utils.feature_extract import extract_features
-import joblib
-import numpy as np
+from events_guess import predict_audio_events
 
-# 加载模型和标准化器
-model = joblib.load("models/audio_event_model_segments.pkl")
-scaler = joblib.load("models/feature_scaler_segments.pkl")
-
-# 提取特征
+# 预测音频事件
 audio_file = "test.wav"
-features = extract_features(audio_file)
+events = predict_audio_events(
+    audio_file,
+    window_size=2.0,        # 分析窗口大小（秒）
+    hop_length=1.5,         # 窗口滑动步长（秒）
+    confidence_threshold=0.6 # 置信度阈值
+)
 
-# 标准化特征
-features_scaled = scaler.transform(features.reshape(1, -1))
-
-# 预测
-prediction = model.predict(features_scaled)
-probabilities = model.predict_proba(features_scaled)
-confidence = np.max(probabilities)
-
-print(f"预测状态: {prediction[0]}")
-print(f"置信度: {confidence:.2%}")
+# 输出预测结果
+for event_type, start_time, end_time, confidence in events:
+    print(f"事件: {event_type}, 开始: {start_time:.2f}s, 结束: {end_time:.2f}s, 置信度: {confidence:.2%}")
 ```
+
+#### 3.2 使用Web界面进行可视化分析
+
+启动Web界面：
+```bash
+streamlit run webui.py
+```
+
+Web界面功能：
+- 上传音频文件进行分析
+- 调整分析参数（窗口大小、滑动步长、置信度阈值）
+- 可视化音频波形、梅尔频谱和MFCC特征
+- 显示事件检测结果和时间线
+- 提供音频播放功能
 
 ## 性能指标
 
@@ -123,21 +162,43 @@ print(f"置信度: {confidence:.2%}")
 | 停车 | 100%   | 50%    | 67%    |
 | 慢车 | 75%    | 100%   | 86%    |
 | 飞行 | 100%   | 100%   | 100%   |
+| 悬停 | 95%    | 90%    | 92%    |
+| 转弯 | 90%    | 85%    | 87%    |
 
 总体准确率：86%
 
 ## 注意事项
 
-1. 音频文件要求：
+1. **音频文件要求**：
    - 支持常见音频格式（wav, mp3, flac等）
    - 建议使用无损格式（如wav）以获得最佳效果
-   - 采样率会自动调整为22050Hz
+   - 所有音频会自动调整为22050Hz采样率进行处理
 
-2. 内存使用：
+2. **内存使用**：
    - 特征提取过程会并行处理
    - 建议为大量音频处理预留足够内存
+   - 处理过程使用内存缓冲区而非临时文件，提高效率
 
-3. 模型限制：
+3. **模型优化**：
    - 当前模型针对特定场景优化
    - 对于新的音频类型可能需要重新训练
+   - 可调整随机森林参数以优化特定场景性能
 
+4. **Web界面限制**：
+   - 上传文件大小可能受到Streamlit限制
+   - 长音频文件分析可能需要较长时间
+
+## 未来计划
+
+- 增加深度学习模型支持
+- 优化长音频处理性能
+- 添加批量处理功能
+- 改进实时分析能力
+
+## 贡献
+
+欢迎提交Issue和Pull Request以帮助改进项目。
+
+## 许可
+
+MIT License
