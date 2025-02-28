@@ -17,6 +17,9 @@ plt.style.use('default')
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
+if 'has_displayed_results' not in st.session_state:
+    st.session_state.has_displayed_results = False
+
 def plot_waveform(y, sr):
     """绘制音频波形图"""
     fig = plt.figure(figsize=(12, 3))
@@ -70,7 +73,7 @@ def main():
         "窗口大小 (秒)",
         min_value=0.5,
         max_value=5.0,
-        value=1.0,
+        value=2.0,
         step=0.1,
         help="音频分析的时间窗口大小"
     )
@@ -79,7 +82,7 @@ def main():
         "滑动步长 (秒)",
         min_value=0.1,
         max_value=2.0,
-        value=0.5,
+        value=1.5,
         step=0.1,
         help="连续窗口之间的时间间隔"
     )
@@ -88,7 +91,7 @@ def main():
         "置信度阈值",
         min_value=0.0,
         max_value=1.0,
-        value=0.5,
+        value=0.6,
         step=0.05,
         help="事件检测的置信度阈值"
     )
@@ -100,14 +103,49 @@ def main():
     uploaded_file = st.file_uploader("选择音频文件", type=['wav', 'mp3'])
 
     if uploaded_file is not None:
-        # 创建占位符
-        progress_placeholder = st.empty()  # 用于进度条
-        status_placeholder = st.empty()    # 用于状态文本
-        result_placeholder = st.empty()    # 用于结果显示
+        progress_placeholder = st.empty()
+        status_placeholder = st.empty()
+        result_placeholder = st.empty()
 
-        # 添加开始检测按钮
+        # 如果已经显示过结果，显示保存的图片和信息
+        if st.session_state.has_displayed_results:
+            with result_placeholder.container():
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    if 'waveform' in st.session_state:
+                        st.subheader("波形图")
+                        st.pyplot(st.session_state.waveform)
+                    
+                    if 'melspectrogram' in st.session_state:
+                        st.subheader("梅尔频谱图")
+                        st.pyplot(st.session_state.melspectrogram)
+                    
+                    if 'mfcc' in st.session_state:
+                        st.subheader("MFCC特征图")
+                        st.pyplot(st.session_state.mfcc)
+                
+                with col2:
+                    if 'audio_info' in st.session_state:
+                        st.subheader("音频信息")
+                        st.write(st.session_state.audio_info)
+                    
+                    if 'events' in st.session_state:
+                        st.subheader("事件检测结果")
+                        if st.session_state.events:
+                            for event, start, end, confidence in st.session_state.events:
+                                with st.expander(f"事件: {event} ({confidence:.2%})"):
+                                    st.write(f"开始时间: {start:.2f}秒")
+                                    st.write(f"结束时间: {end:.2f}秒")
+                        else:
+                            st.write("未检测到显著事件")
+
         if st.button("开始检测"):
+            st.session_state.has_displayed_results = True
             try:
+                # 清空之前的结果
+                result_placeholder.empty()
+                
                 # 显示进度条和状态文本
                 progress_bar = progress_placeholder.progress(0)
                 status_text = status_placeholder.text("正在加载音频...")
@@ -141,8 +179,8 @@ def main():
                 except:
                     pass
 
-                # 使用列布局优化显示效果
-                with result_placeholder.container():
+                # 使用列布局显示结果
+                with result_placeholder.container() as results:
                     col1, col2 = st.columns([2, 1])
                     
                     with col1:
@@ -152,7 +190,7 @@ def main():
                             plt.close('all')
                             fig1 = plot_waveform(y, sr)
                             st.pyplot(fig1)
-                            plt.close(fig1)
+                            st.session_state.waveform = fig1
                         except Exception as e:
                             st.error(f"波形图生成失败: {str(e)}")
 
@@ -162,7 +200,7 @@ def main():
                             plt.close('all')
                             fig2 = plot_melspectrogram(y, sr)
                             st.pyplot(fig2)
-                            plt.close(fig2)
+                            st.session_state.melspectrogram = fig2
                         except Exception as e:
                             st.error(f"梅尔频谱图生成失败: {str(e)}")
 
@@ -172,18 +210,23 @@ def main():
                             plt.close('all')
                             fig3 = plot_mfcc(y, sr)
                             st.pyplot(fig3)
-                            plt.close(fig3)
+                            st.session_state.mfcc = fig3
                         except Exception as e:
                             st.error(f"MFCC特征图生成失败: {str(e)}")
 
                     with col2:
                         # 显示音频信息
                         st.subheader("音频信息")
-                        st.write(f"采样率: {sr} Hz")
-                        st.write(f"时长: {duration:.2f} 秒")
+                        audio_info = {
+                            "采样率": f"{sr} Hz",
+                            "时长": f"{duration:.2f} 秒"
+                        }
+                        st.write(audio_info)
+                        st.session_state.audio_info = audio_info
 
                         # 显示检测结果
                         st.subheader("事件检测结果")
+                        st.session_state.events = events
                         if events:
                             for event, start, end, confidence in events:
                                 with st.expander(f"事件: {event} ({confidence:.2%})"):

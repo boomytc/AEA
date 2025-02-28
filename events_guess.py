@@ -73,9 +73,9 @@ def merge_predictions(predictions):
 
 def predict_audio_events(
     audio_file: str,
-    window_size: float = 5.0,  # 窗口大小（秒）
+    window_size: float = 2.0,  # 窗口大小（秒）
     hop_length: float = 2.0,    # 窗口滑动步长（秒）
-    confidence_threshold: float = 0.75,  # 置信度阈值
+    confidence_threshold: float = 0.6,  # 置信度阈值
     model_path: str = "models/audio_event_model_segments.pkl",
     scaler_path: str = "models/feature_scaler_segments.pkl"
 ) -> List[Tuple[str, float, float, float]]:
