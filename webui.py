@@ -69,6 +69,26 @@ def main():
 
     # 添加侧边栏
     st.sidebar.title("参数设置")
+    
+    # 添加模型选择
+    model_type = st.sidebar.radio(
+        "选择模型类型",
+        ["随机森林 (RF)", "XGBoost (XGB)"],
+        index=1,  # 默认选择XGBoost
+        help="选择用于检测的模型类型"
+    )
+    
+    # 转换为代码中使用的模型类型
+    model_code_type = "xgb" if "XGBoost" in model_type else "rf"
+    
+    # 高级选项折叠面板
+    with st.sidebar.expander("高级选项"):
+        custom_model_path = st.text_input(
+            "自定义模型路径",
+            value="",
+            help="如果要使用自定义模型，请输入完整路径"
+        )
+    
     window_size = st.sidebar.slider(
         "窗口大小 (秒)",
         min_value=0.5,
@@ -98,6 +118,9 @@ def main():
 
     st.title("音频事件分析系统")
     st.write("上传音频文件进行分析")
+    
+    # 显示当前使用的模型
+    st.markdown(f"**当前模型**: {model_type}")
 
     # 文件上传
     uploaded_file = st.file_uploader("选择音频文件", type=['wav', 'mp3'])
@@ -162,16 +185,38 @@ def main():
                 y, sr = librosa.load(temp_audio_path, sr=None)
                 duration = librosa.get_duration(y=y, sr=sr)
                 
-                status_text.text("正在进行事件检测...")
+                status_text.text(f"正在使用{model_type}模型进行事件检测...")
                 progress_bar.progress(60)
                 
+                # 准备模型参数
+                model_params = {
+                    "window_size": window_size,
+                    "hop_length": hop_length,
+                    "confidence_threshold": confidence_threshold,
+                    "model_type": model_code_type
+                }
+                
+                # 根据模型类型设置默认模型路径
+                if not custom_model_path:
+                    if model_code_type == 'rf':
+                        model_params["model_path"] = "models/audio_event_model_segments.pkl"
+                    else:  # xgb
+                        model_params["model_path"] = "models/audio_event_model_xgboost.pkl"
+                else:
+                    # 如果有自定义模型路径
+                    model_params["model_path"] = custom_model_path
+                
                 # 使用临时文件路径进行事件检测
-                events = predict_audio_events(
-                    temp_audio_path,
-                    window_size=window_size,
-                    hop_length=hop_length,
-                    confidence_threshold=confidence_threshold
-                )
+                try:
+                    events = predict_audio_events(
+                        temp_audio_path,
+                        **model_params
+                    )
+                except Exception as e:
+                    st.error(f"事件检测失败: {str(e)}")
+                    import traceback
+                    st.error(f"详细错误: {traceback.format_exc()}")
+                    events = []
 
                 # 删除临时文件
                 try:
@@ -219,7 +264,8 @@ def main():
                         st.subheader("音频信息")
                         audio_info = {
                             "采样率": f"{sr} Hz",
-                            "时长": f"{duration:.2f} 秒"
+                            "时长": f"{duration:.2f} 秒",
+                            "使用模型": model_type
                         }
                         st.write(audio_info)
                         st.session_state.audio_info = audio_info
