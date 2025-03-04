@@ -10,7 +10,7 @@ from events_guess import predict_audio_events
 import tempfile
 import matplotlib
 import io
-matplotlib.use('Agg')  # 必须在导入 pyplot 之前设置后端
+matplotlib.use('Agg')  
 
 # 设置matplotlib样式
 plt.style.use('default')

@@ -8,3 +8,4 @@ numba==0.61.0
 streamlit
 matplotlib
 xgboost
+demucs
