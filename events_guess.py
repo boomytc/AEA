@@ -196,7 +196,7 @@ def main():
     parser.add_argument('--model_path', help='模型文件路径')
     parser.add_argument('--window_size', '-w', type=float, default=2.0, help='分析窗口大小（秒）')
     parser.add_argument('--hop_length', '-l', type=float, default=1.0, help='窗口滑动步长（秒）')
-    parser.add_argument('--confidence', '-c', type=float, default=0.6, help='置信度阈值')
+    parser.add_argument('--confidence', '-c', type=float, default=0.55, help='置信度阈值')
     
     args = parser.parse_args()
     
