@@ -120,15 +120,16 @@ def move_files_from_model_dir(track_path, output_dir, model_name, save_file=None
         return False
 
 # 分离人声和背景音乐
-track_path = "datasets/test/test.wav"
+track_path = "datasets/test/test_mixture_466.wav"
 output_dir = "test_separated"
+model_name = "htdemucs"
 save_file = "no_vocals" # "vocals" or "no_vocals"
 
 # 调用原始的separate_audio函数
 separate_result = separate_audio(
     track_path,
     output_dir=output_dir,
-    model_name="htdemucs",
+    model_name=model_name,
     device="cuda",
     two_stems="vocals",  # 仅分离人声和伴奏
     verbose=True,
@@ -138,7 +139,8 @@ separate_result = separate_audio(
 # 如果分离成功，则进行后处理
 if separate_result:
     # 将文件从模型子目录移动到目标目录
-    move_result = move_files_from_model_dir(track_path, output_dir, model_name, save_file)
+    # move_result = move_files_from_model_dir(track_path, output_dir, model_name, save_file)
+    move_result = move_files_from_model_dir(track_path, output_dir, model_name)
     if move_result:
         print(f"最终结果保存在: {output_dir}")
 

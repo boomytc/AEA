@@ -6,7 +6,7 @@ import numpy as np
 import soundfile as sf
 import os
 from utils.feature_extract import extract_features
-from events_guess import predict_audio_events
+from events_guess_only_ambient import predict_audio_events
 import tempfile
 import matplotlib
 import io
@@ -80,6 +80,13 @@ def main():
     
     # 转换为代码中使用的模型类型
     model_code_type = "xgb" if "XGBoost" in model_type else "rf"
+    
+    # 添加无人声音频处理选项
+    use_ambient_only = st.sidebar.checkbox(
+        "仅使用无人声部分进行检测",
+        value=True,
+        help="启用后，将先分离音频，仅使用无人声部分进行事件检测"
+    )
     
     # 高级选项折叠面板
     with st.sidebar.expander("高级选项"):
@@ -185,7 +192,8 @@ def main():
                 y, sr = librosa.load(temp_audio_path, sr=None)
                 duration = librosa.get_duration(y=y, sr=sr)
                 
-                status_text.text(f"正在使用{model_type}模型进行事件检测...")
+                ambient_text = "(仅使用无人声部分)" if use_ambient_only else ""
+                status_text.text(f"正在使用{model_type}模型{ambient_text}进行事件检测...")
                 progress_bar.progress(60)
                 
                 # 准备模型参数
@@ -193,7 +201,8 @@ def main():
                     "window_size": window_size,
                     "hop_length": hop_length,
                     "confidence_threshold": confidence_threshold,
-                    "model_type": model_code_type
+                    "model_type": model_code_type,
+                    "use_ambient_only": use_ambient_only
                 }
                 
                 # 根据模型类型设置默认模型路径
@@ -265,7 +274,8 @@ def main():
                         audio_info = {
                             "采样率": f"{sr} Hz",
                             "时长": f"{duration:.2f} 秒",
-                            "使用模型": model_type
+                            "使用模型": model_type,
+                            "仅使用无人声部分": "是" if use_ambient_only else "否"
                         }
                         st.write(audio_info)
                         st.session_state.audio_info = audio_info
