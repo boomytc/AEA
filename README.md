@@ -329,6 +329,16 @@ conda activate AEA
 pip install -r requirements.txt
 ```
 
+# 下载离线依赖包（可选）
+```bash
+pip download -r ./requirements.txt -d ./offline-packages
+```
+
+# 安装下载的离线依赖包（可选）
+```bash
+pip install --no-index --find-links=offline-packages -r requirements.txt
+```
+
 ## 项目结构
 
 ```

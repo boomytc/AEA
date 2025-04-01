@@ -6,3 +6,4 @@ data/txt.txt
 data/list_train.txt
 data/list_label.txt
 *.pyc
+offline-packages/

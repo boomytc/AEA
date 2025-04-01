@@ -93,7 +93,7 @@ def main():
         custom_model_path = st.text_input(
             "自定义模型路径",
             value="",
-            help="如果要使用自定义模型，请输入完整路径"
+            help="如果要使用自定义模型，请输入完整路径 (.pkl)"
         )
     
     window_size = st.sidebar.slider(
