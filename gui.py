@@ -10,9 +10,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QHBoxLayout, QPushButton, QFileDialog, QLabel, 
                            QComboBox, QGroupBox, QTextEdit, 
                            QScrollArea, QDoubleSpinBox, QSizePolicy,
-                           QGridLayout, QFrame)
-from PyQt6.QtCore import Qt
+                           QGridLayout, QFrame, QSlider, QStyle) # 添加 QSlider, QStyle
+from PyQt6.QtCore import Qt, QUrl # 添加 QUrl
 from PyQt6.QtGui import QFont
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput # 添加 QMediaPlayer, QAudioOutput
 from events_guess import predict_audio_events
 
 # 设置matplotlib使用Qt后端
@@ -31,7 +32,7 @@ class AudioEventAnalyzer(QMainWindow):
         width = int(screen.width() * 0.8)
         height = int(screen.height() * 0.8)
         self.setGeometry(0, 0, width, height)
-        
+        sasds
         # 将窗口移动到屏幕中央
         self.move(int((screen.width() - width) / 2),
                  int((screen.height() - height) / 2))
@@ -64,7 +65,19 @@ class AudioEventAnalyzer(QMainWindow):
         self.audio_path = None
         self.y = None
         self.sr = None
+        self.detected_events = [] # 存储检测到的事件
+        self.waveform_ax = None # 存储波形图的Axes对象
         
+        # 初始化播放器
+        self.player = QMediaPlayer()
+        self.audio_output = QAudioOutput() # 需要一个 QAudioOutput 实例
+        self.player.setAudioOutput(self.audio_output)
+        
+        # 连接播放器信号
+        self.player.positionChanged.connect(self.update_slider_position)
+        self.player.durationChanged.connect(self.update_duration)
+        self.player.playbackStateChanged.connect(self.update_play_button_icon)
+
     def create_control_panel(self):
         panel = QFrame()
         panel.setFrameShape(QFrame.Shape.StyledPanel)
@@ -144,6 +157,45 @@ class AudioEventAnalyzer(QMainWindow):
         params_group.setLayout(params_layout)
         layout.addWidget(params_group)
         
+        # --- 添加音频播放控制 ---
+        player_group = QGroupBox("音频播放")
+        player_layout = QVBoxLayout()
+        player_layout.setSpacing(8)
+
+        # 播放/暂停/停止按钮行
+        button_layout = QHBoxLayout()
+        self.play_button = QPushButton()
+        self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.play_button.setEnabled(False)
+        self.play_button.clicked.connect(self.toggle_playback)
+        button_layout.addWidget(self.play_button)
+
+        self.stop_button = QPushButton()
+        self.stop_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
+        self.stop_button.setEnabled(False)
+        self.stop_button.clicked.connect(self.stop_audio)
+        button_layout.addWidget(self.stop_button)
+        player_layout.addLayout(button_layout)
+
+        # 播放进度条
+        self.position_slider = QSlider(Qt.Orientation.Horizontal)
+        self.position_slider.setEnabled(False)
+        self.position_slider.sliderMoved.connect(self.set_player_position)
+        player_layout.addWidget(self.position_slider)
+
+        # 时间标签
+        time_layout = QHBoxLayout()
+        self.current_time_label = QLabel("00:00")
+        self.total_time_label = QLabel("00:00")
+        time_layout.addWidget(self.current_time_label)
+        time_layout.addStretch()
+        time_layout.addWidget(self.total_time_label)
+        player_layout.addLayout(time_layout)
+
+        player_group.setLayout(player_layout)
+        layout.addWidget(player_group)
+        # --- 结束音频播放控制 ---
+
         # 检测按钮
         self.detect_button = QPushButton("开始检测")
         self.detect_button.setMinimumHeight(40)
@@ -245,6 +297,9 @@ class AudioEventAnalyzer(QMainWindow):
         self.result_text.append(f"已根据{current_model}模型特性，将置信度阈值调整为{self.confidence.value()}")
         
     def load_audio_file(self):
+        # 先停止当前播放（如果正在播放）
+        self.stop_audio()
+        
         dialog = QFileDialog()
         dialog.setWindowTitle("选择音频文件")
         dialog.setNameFilter("音频文件 (*.wav *.mp3)")
@@ -255,30 +310,48 @@ class AudioEventAnalyzer(QMainWindow):
             self.audio_path = file_path
             self.file_label.setText(os.path.basename(file_path))
             self.detect_button.setEnabled(True)
+            self.detected_events = [] # 清空之前的事件
             try:
                 self.y, self.sr = librosa.load(file_path, sr=None)
-                self.plot_audio_features()
+                self.plot_audio_features() # 绘制初始图表
+                
+                # 设置播放器
+                self.player.setSource(QUrl.fromLocalFile(self.audio_path))
+                self.play_button.setEnabled(True)
+                self.stop_button.setEnabled(True)
+                self.position_slider.setEnabled(True)
+                self.position_slider.setValue(0) # 重置滑块
+
                 self.result_text.setText(f"已加载音频文件：{os.path.basename(file_path)}\n"
                                        f"采样率：{self.sr} Hz\n"
                                        f"持续时间：{len(self.y)/self.sr:.2f} 秒")
             except Exception as e:
                 self.result_text.setText(f"加载音频文件失败：{str(e)}")
+                self.play_button.setEnabled(False)
+                self.stop_button.setEnabled(False)
+                self.position_slider.setEnabled(False)
                 
     def plot_audio_features(self):
         if self.y is None or self.sr is None:
             return
             
-        # 波形图
+        # --- 更新波形图 ---
         self.waveform_canvas.figure.clear()
-        ax = self.waveform_canvas.figure.add_subplot(111)
-        ax.plot(np.linspace(0, len(self.y)/self.sr, len(self.y)), self.y)
-        ax.set_title('波形图')
-        ax.set_xlabel('时间 (秒)')
-        ax.set_ylabel('振幅')
-        ax.grid(True, linestyle='--', alpha=0.7)
+        self.waveform_ax = self.waveform_canvas.figure.add_subplot(111) # 存储Axes对象
+        time_axis = np.linspace(0, len(self.y)/self.sr, len(self.y))
+        self.waveform_ax.plot(time_axis, self.y)
+        self.waveform_ax.set_title('波形图')
+        self.waveform_ax.set_xlabel('时间 (秒)')
+        self.waveform_ax.set_ylabel('振幅')
+        self.waveform_ax.grid(True, linestyle='--', alpha=0.7)
+        
+        # 在这里绘制事件标记（如果已有）
+        self.draw_event_markers() 
+        
         self.waveform_canvas.figure.tight_layout()
         self.waveform_canvas.draw()
         
+        # --- 保持其他图表绘制不变 ---
         # 梅尔频谱图
         self.mel_canvas.figure.clear()
         ax = self.mel_canvas.figure.add_subplot(111)
@@ -312,7 +385,34 @@ class AudioEventAnalyzer(QMainWindow):
         ax.grid(True, linestyle='--', alpha=0.7)
         self.rms_canvas.figure.tight_layout()
         self.rms_canvas.draw()
-        
+
+    def draw_event_markers(self):
+        """在波形图上绘制事件标记"""
+        if self.waveform_ax is None or not self.detected_events:
+            return
+            
+        # 清除旧的标记 (如果需要的话，但axvspan通常会叠加)
+        # for patch in self.waveform_ax.patches:
+        #     if hasattr(patch, 'set_alpha') and patch.get_alpha() == 0.3: # 假设用alpha区分
+        #         patch.remove()
+
+        colors = plt.cm.get_cmap('tab10', len(set(e[0] for e in self.detected_events)))
+        event_types = sorted(list(set(e[0] for e in self.detected_events)))
+        color_map = {etype: colors(i) for i, etype in enumerate(event_types)}
+
+        for event, start, end, confidence in self.detected_events:
+            color = color_map.get(event, 'gray') # 获取事件类型对应的颜色
+            self.waveform_ax.axvspan(start, end, color=color, alpha=0.3, label=f'{event} ({confidence:.1%})')
+            # 添加文本标签（可选，可能导致重叠）
+            # self.waveform_ax.text((start + end) / 2, self.waveform_ax.get_ylim()[1] * 0.9, event, 
+            #                       horizontalalignment='center', color=color, fontsize=8)
+
+        # 添加图例 (可能会变得拥挤，根据需要调整或移除)
+        # handles, labels = self.waveform_ax.get_legend_handles_labels()
+        # by_label = dict(zip(labels, handles)) # 去重
+        # self.waveform_ax.legend(by_label.values(), by_label.keys(), loc='upper right', fontsize='small')
+
+
     def run_detection(self):
         if not self.audio_path:
             return
@@ -324,7 +424,8 @@ class AudioEventAnalyzer(QMainWindow):
             model_type = "xgb" if "XGB" in self.model_combo.currentText() else "rf"
             model_path = "models/audio_event_model_xgboost.pkl" if model_type == "xgb" else "models/audio_event_model_segments.pkl"
             
-            events = predict_audio_events(
+            # 调用检测函数
+            self.detected_events = predict_audio_events(
                 self.audio_path,
                 window_size=self.window_size.value(),
                 hop_length=self.hop_length.value(),
@@ -333,11 +434,13 @@ class AudioEventAnalyzer(QMainWindow):
                 model_path=model_path
             )
             
-            # 显示检测结果
-            result_text = "检测结果：\n\n"
+            # --- 更新波形图以显示事件 ---
+            self.plot_audio_features() # 重新绘制波形图（包含事件标记）
             
-            if events:
-                for i, (event, start, end, confidence) in enumerate(events, 1):
+            # 显示检测结果文本
+            result_text = "检测结果：\n\n"
+            if self.detected_events:
+                for i, (event, start, end, confidence) in enumerate(self.detected_events, 1):
                     result_text += f"事件 {i}:\n"
                     result_text += f"类型: {event}\n"
                     result_text += f"置信度: {confidence:.2%}\n"
@@ -347,11 +450,17 @@ class AudioEventAnalyzer(QMainWindow):
                 
                 # 添加摘要信息
                 result_text += f"\n统计摘要:\n"
-                result_text += f"检测到的事件总数: {len(events)}\n"
-                total_duration = sum(end-start for _, start, end, _ in events)
+                result_text += f"检测到的事件总数: {len(self.detected_events)}\n"
+                total_duration = sum(end-start for _, start, end, _ in self.detected_events)
                 result_text += f"事件总持续时间: {total_duration:.1f}s\n"
                 audio_duration = len(self.y)/self.sr if self.y is not None and self.sr is not None else 0
                 result_text += f"音频总时长: {audio_duration:.1f}s\n"
+                # 添加图例说明到文本结果区
+                result_text += "\n图例说明 (波形图):\n"
+                event_types = sorted(list(set(e[0] for e in self.detected_events)))
+                for etype in event_types:
+                     result_text += f"- {etype}: {etype} 事件区域\n"
+
             else:
                 result_text = "未检测到显著事件"
                 
@@ -359,6 +468,47 @@ class AudioEventAnalyzer(QMainWindow):
             
         except Exception as e:
             self.result_text.setText(f"检测失败：{str(e)}")
+            self.detected_events = [] # 清空事件
+            self.plot_audio_features() # 重新绘制无事件的波形图
+
+    # --- 音频播放相关方法 ---
+    def toggle_playback(self):
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.player.pause()
+        else:
+            self.player.play()
+
+    def stop_audio(self):
+        self.player.stop()
+
+    def update_play_button_icon(self, state):
+        if state == QMediaPlayer.PlaybackState.PlayingState:
+            self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
+        else:
+            self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+
+    def update_slider_position(self, position):
+        if not self.position_slider.isSliderDown(): # 只有在用户没有拖动滑块时才更新
+             self.position_slider.setValue(position)
+        self.current_time_label.setText(self.format_time(position))
+
+    def update_duration(self, duration):
+        self.position_slider.setRange(0, duration)
+        self.total_time_label.setText(self.format_time(duration))
+
+    def set_player_position(self, position):
+        self.player.setPosition(position)
+
+    def format_time(self, ms):
+        """将毫秒格式化为 mm:ss"""
+        seconds = int((ms / 1000) % 60)
+        minutes = int((ms / (1000 * 60)) % 60)
+        return f"{minutes:02d}:{seconds:02d}"
+
+    def closeEvent(self, event):
+        """关闭窗口时停止播放"""
+        self.stop_audio()
+        event.accept()
 
 def main():
     app = QApplication(sys.argv)
