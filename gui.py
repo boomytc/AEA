@@ -4,22 +4,20 @@ import librosa
 import librosa.display
 import numpy as np
 import matplotlib.pyplot as plt
-# 修复导入错误 - 使用兼容的matplotlib后端
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QPushButton, QFileDialog, QLabel, 
                            QComboBox, QGroupBox, QTextEdit, 
                            QScrollArea, QDoubleSpinBox, QSizePolicy,
                            QGridLayout, QFrame, QSlider, QStyle, 
-                           QCheckBox) # 添加 QCheckBox
-from PyQt6.QtCore import Qt, QUrl # 添加 QUrl
+                           QCheckBox)
+from PyQt6.QtCore import Qt, QUrl 
 from PyQt6.QtGui import QFont
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput # 添加 QMediaPlayer, QAudioOutput
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from events_guess import predict_audio_events
 
-# 设置matplotlib使用Qt后端
 import matplotlib
-matplotlib.use('QtAgg')  # 使用通用的QtAgg后端，它会自动选择适合的Qt版本
+matplotlib.use('QtAgg') 
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
