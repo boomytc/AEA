@@ -10,7 +10,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QHBoxLayout, QPushButton, QFileDialog, QLabel, 
                            QComboBox, QGroupBox, QTextEdit, 
                            QScrollArea, QDoubleSpinBox, QSizePolicy,
-                           QGridLayout, QFrame, QSlider, QStyle) # 添加 QSlider, QStyle
+                           QGridLayout, QFrame, QSlider, QStyle, 
+                           QCheckBox) # 添加 QCheckBox
 from PyQt6.QtCore import Qt, QUrl # 添加 QUrl
 from PyQt6.QtGui import QFont
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput # 添加 QMediaPlayer, QAudioOutput
@@ -77,6 +78,11 @@ class AudioEventAnalyzer(QMainWindow):
         self.player.positionChanged.connect(self.update_slider_position)
         self.player.durationChanged.connect(self.update_duration)
         self.player.playbackStateChanged.connect(self.update_play_button_icon)
+
+        # 设置图表初始可见性 (在控件创建后)
+        self.toggle_rms_visibility(self.show_rms_checkbox.checkState())
+        self.toggle_mfcc_visibility(self.show_mfcc_checkbox.checkState())
+
 
     def create_control_panel(self):
         panel = QFrame()
@@ -156,7 +162,26 @@ class AudioEventAnalyzer(QMainWindow):
         
         params_group.setLayout(params_layout)
         layout.addWidget(params_group)
-        
+
+        # --- 添加图表显示选项 ---
+        charts_display_group = QGroupBox("图表显示")
+        charts_display_layout = QVBoxLayout()
+        charts_display_layout.setSpacing(5)
+
+        self.show_rms_checkbox = QCheckBox("显示 RMS 能量图")
+        self.show_rms_checkbox.setChecked(False) # 默认不显示 RMS
+        self.show_rms_checkbox.stateChanged.connect(self.toggle_rms_visibility)
+        charts_display_layout.addWidget(self.show_rms_checkbox)
+
+        self.show_mfcc_checkbox = QCheckBox("显示 MFCC 特征图")
+        self.show_mfcc_checkbox.setChecked(False) # 默认不显示 MFCC
+        self.show_mfcc_checkbox.stateChanged.connect(self.toggle_mfcc_visibility)
+        charts_display_layout.addWidget(self.show_mfcc_checkbox)
+
+        charts_display_group.setLayout(charts_display_layout)
+        layout.addWidget(charts_display_group)
+        # --- 结束图表显示选项 ---
+
         # --- 添加音频播放控制 ---
         player_group = QGroupBox("音频播放")
         player_layout = QVBoxLayout()
@@ -211,41 +236,44 @@ class AudioEventAnalyzer(QMainWindow):
         """创建中间的图表显示区域"""
         panel = QScrollArea()
         content = QWidget()
-        layout = QGridLayout()
+        # 改用垂直布局
+        layout = QVBoxLayout() 
         layout.setSpacing(10)
         content.setLayout(layout)
         
-        # 波形图 (左上)
+        # 波形图 - 始终显示
         self.waveform_group = QGroupBox("波形图")
         waveform_layout = QVBoxLayout()
         self.waveform_canvas = self.create_plot_canvas()
         waveform_layout.addWidget(self.waveform_canvas)
         self.waveform_group.setLayout(waveform_layout)
-        layout.addWidget(self.waveform_group, 0, 0)
+        layout.addWidget(self.waveform_group) # 直接添加到垂直布局
         
-        # 梅尔频谱图 (右上)
+        # 梅尔频谱图 - 始终显示
         self.mel_group = QGroupBox("梅尔频谱图")
         mel_layout = QVBoxLayout()
         self.mel_canvas = self.create_plot_canvas()
         mel_layout.addWidget(self.mel_canvas)
         self.mel_group.setLayout(mel_layout)
-        layout.addWidget(self.mel_group, 0, 1)
+        layout.addWidget(self.mel_group) # 直接添加到垂直布局
         
-        # MFCC特征图 (左下)
-        self.mfcc_group = QGroupBox("MFCC特征图")
-        mfcc_layout = QVBoxLayout()
-        self.mfcc_canvas = self.create_plot_canvas()
-        mfcc_layout.addWidget(self.mfcc_canvas)
-        self.mfcc_group.setLayout(mfcc_layout)
-        layout.addWidget(self.mfcc_group, 1, 0)
-        
-        # RMS能量图 (右下)
+        # RMS能量图 - 可选
         self.rms_group = QGroupBox("RMS能量图")
         rms_layout = QVBoxLayout()
         self.rms_canvas = self.create_plot_canvas()
         rms_layout.addWidget(self.rms_canvas)
         self.rms_group.setLayout(rms_layout)
-        layout.addWidget(self.rms_group, 1, 1)
+        layout.addWidget(self.rms_group) # 直接添加到垂直布局
+        # 初始可见性由 __init__ 控制
+
+        # MFCC特征图 - 可选
+        self.mfcc_group = QGroupBox("MFCC特征图")
+        mfcc_layout = QVBoxLayout()
+        self.mfcc_canvas = self.create_plot_canvas()
+        mfcc_layout.addWidget(self.mfcc_canvas)
+        self.mfcc_group.setLayout(mfcc_layout)
+        layout.addWidget(self.mfcc_group) # 直接添加到垂直布局
+        # 初始可见性由 __init__ 控制
         
         panel.setWidget(content)
         panel.setWidgetResizable(True)
@@ -335,24 +363,20 @@ class AudioEventAnalyzer(QMainWindow):
         if self.y is None or self.sr is None:
             return
             
-        # --- 更新波形图 ---
+        # --- 更新波形图 (始终绘制) ---
         self.waveform_canvas.figure.clear()
-        self.waveform_ax = self.waveform_canvas.figure.add_subplot(111) # 存储Axes对象
+        self.waveform_ax = self.waveform_canvas.figure.add_subplot(111) 
         time_axis = np.linspace(0, len(self.y)/self.sr, len(self.y))
         self.waveform_ax.plot(time_axis, self.y)
         self.waveform_ax.set_title('波形图')
         self.waveform_ax.set_xlabel('时间 (秒)')
         self.waveform_ax.set_ylabel('振幅')
         self.waveform_ax.grid(True, linestyle='--', alpha=0.7)
-        
-        # 在这里绘制事件标记（如果已有）
         self.draw_event_markers() 
-        
         self.waveform_canvas.figure.tight_layout()
         self.waveform_canvas.draw()
         
-        # --- 保持其他图表绘制不变 ---
-        # 梅尔频谱图
+        # --- 更新梅尔频谱图 (始终绘制) ---
         self.mel_canvas.figure.clear()
         ax = self.mel_canvas.figure.add_subplot(111)
         mel_spect = librosa.feature.melspectrogram(y=self.y, sr=self.sr)
@@ -364,54 +388,82 @@ class AudioEventAnalyzer(QMainWindow):
         self.mel_canvas.figure.tight_layout()
         self.mel_canvas.draw()
         
-        # MFCC特征图
-        self.mfcc_canvas.figure.clear()
-        ax = self.mfcc_canvas.figure.add_subplot(111)
-        mfccs = librosa.feature.mfcc(y=self.y, sr=self.sr, n_mfcc=13)
-        img = librosa.display.specshow(mfccs, x_axis='time', ax=ax)
-        self.mfcc_canvas.figure.colorbar(img, ax=ax)
-        ax.set_title('MFCC特征图')
-        self.mfcc_canvas.figure.tight_layout()
-        self.mfcc_canvas.draw()
+        # --- 更新 MFCC 特征图 (仅当可见时绘制) ---
+        if self.mfcc_group.isVisible():
+            self.mfcc_canvas.figure.clear()
+            ax = self.mfcc_canvas.figure.add_subplot(111)
+            mfccs = librosa.feature.mfcc(y=self.y, sr=self.sr, n_mfcc=13)
+            img = librosa.display.specshow(mfccs, x_axis='time', ax=ax)
+            self.mfcc_canvas.figure.colorbar(img, ax=ax)
+            ax.set_title('MFCC特征图')
+            self.mfcc_canvas.figure.tight_layout()
+            self.mfcc_canvas.draw()
 
-        # RMS能量图
-        self.rms_canvas.figure.clear()
-        ax = self.rms_canvas.figure.add_subplot(111)
-        rms = librosa.feature.rms(y=self.y)
-        ax.plot(np.linspace(0, len(self.y)/self.sr, len(rms.T)), rms.T)
-        ax.set_title('RMS能量图')
-        ax.set_xlabel('时间 (秒)')
-        ax.set_ylabel('RMS能量')
-        ax.grid(True, linestyle='--', alpha=0.7)
-        self.rms_canvas.figure.tight_layout()
-        self.rms_canvas.draw()
+        # --- 更新 RMS 能量图 (仅当可见时绘制) ---
+        if self.rms_group.isVisible():
+            self.rms_canvas.figure.clear()
+            ax = self.rms_canvas.figure.add_subplot(111)
+            rms = librosa.feature.rms(y=self.y)[0] # rms 返回的是 (1, N) 形状
+            times = librosa.times_like(rms, sr=self.sr)
+            ax.plot(times, rms)
+            ax.set_title('RMS能量图')
+            ax.set_xlabel('时间 (秒)')
+            ax.set_ylabel('RMS能量')
+            ax.grid(True, linestyle='--', alpha=0.7)
+            self.rms_canvas.figure.tight_layout()
+            self.rms_canvas.draw()
 
     def draw_event_markers(self):
-        """在波形图上绘制事件标记"""
+        """在波形图上绘制事件标记和标签"""
         if self.waveform_ax is None or not self.detected_events:
             return
             
-        # 清除旧的标记 (如果需要的话，但axvspan通常会叠加)
+        # 清除旧的文本标签 (避免重叠累积)
+        for txt in self.waveform_ax.texts:
+            txt.remove()
+        # 清除旧的 axvspan (如果需要，但通常叠加效果更好)
         # for patch in self.waveform_ax.patches:
-        #     if hasattr(patch, 'set_alpha') and patch.get_alpha() == 0.3: # 假设用alpha区分
+        #     if isinstance(patch, plt.Polygon) and patch.get_alpha() == 0.3:
         #         patch.remove()
 
-        colors = plt.cm.get_cmap('tab10', len(set(e[0] for e in self.detected_events)))
-        event_types = sorted(list(set(e[0] for e in self.detected_events)))
-        color_map = {etype: colors(i) for i, etype in enumerate(event_types)}
+        # 获取颜色映射
+        unique_event_types = sorted(list(set(e[0] for e in self.detected_events)))
+        # 使用更鲜明的颜色映射，例如 'tab10' 或 'Set3'
+        colors = plt.cm.get_cmap('tab10', len(unique_event_types)) 
+        color_map = {etype: colors(i) for i, etype in enumerate(unique_event_types)}
+
+        # 获取 y 轴范围用于定位文本
+        ymin, ymax = self.waveform_ax.get_ylim()
+        # 设定文本的垂直位置，略低于 x 轴 (0)
+        text_y_position = ymin - (ymax - ymin) * 0.08 # 调整 0.08 这个系数来控制距离
 
         for event, start, end, confidence in self.detected_events:
             color = color_map.get(event, 'gray') # 获取事件类型对应的颜色
-            self.waveform_ax.axvspan(start, end, color=color, alpha=0.3, label=f'{event} ({confidence:.1%})')
-            # 添加文本标签（可选，可能导致重叠）
-            # self.waveform_ax.text((start + end) / 2, self.waveform_ax.get_ylim()[1] * 0.9, event, 
-            #                       horizontalalignment='center', color=color, fontsize=8)
+            
+            # 绘制半透明区域
+            self.waveform_ax.axvspan(start, end, color=color, alpha=0.3) 
+            
+            # 在 x 轴下方添加文本标签
+            event_label = f"{event}" # 可以简化标签，避免太长
+            self.waveform_ax.text(
+                (start + end) / 2,          # x 坐标：事件中心
+                text_y_position,            # y 坐标：x 轴下方
+                event_label,                # 文本内容
+                horizontalalignment='center', # 水平居中
+                verticalalignment='top',    # 垂直对齐到顶部（文本基线在指定y坐标）
+                color=color,                # 文本颜色与区域颜色一致
+                fontsize=8,                 # 字体大小
+                clip_on=False               # 允许文本绘制在坐标轴区域外
+            )
 
-        # 添加图例 (可能会变得拥挤，根据需要调整或移除)
+        # 调整底部边距以确保文本可见 (tight_layout 可能不够)
+        # plt.subplots_adjust(bottom=0.15) # 可能需要在 plot_audio_features 调用后调整
+        # self.waveform_canvas.figure.subplots_adjust(bottom=0.15) # 更推荐的方式
+
+        # 移除旧的图例，因为它现在由下方的文本标签替代
         # handles, labels = self.waveform_ax.get_legend_handles_labels()
         # by_label = dict(zip(labels, handles)) # 去重
         # self.waveform_ax.legend(by_label.values(), by_label.keys(), loc='upper right', fontsize='small')
-
 
     def run_detection(self):
         if not self.audio_path:
@@ -470,6 +522,19 @@ class AudioEventAnalyzer(QMainWindow):
             self.result_text.setText(f"检测失败：{str(e)}")
             self.detected_events = [] # 清空事件
             self.plot_audio_features() # 重新绘制无事件的波形图
+
+    # --- 新增：图表可见性切换槽函数 ---
+    def toggle_rms_visibility(self, state):
+        is_visible = (state == Qt.CheckState.Checked.value)
+        self.rms_group.setVisible(is_visible)
+        if is_visible and self.y is not None: # 如果变为可见且有音频数据，则重绘
+            self.plot_audio_features() # 调用这个会重绘所有可见图表
+
+    def toggle_mfcc_visibility(self, state):
+        is_visible = (state == Qt.CheckState.Checked.value)
+        self.mfcc_group.setVisible(is_visible)
+        if is_visible and self.y is not None: # 如果变为可见且有音频数据，则重绘
+            self.plot_audio_features() # 调用这个会重绘所有可见图表
 
     # --- 音频播放相关方法 ---
     def toggle_playback(self):
