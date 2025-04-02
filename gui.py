@@ -101,6 +101,8 @@ class AudioEventAnalyzer(QMainWindow):
         self.model_combo = QComboBox()
         self.model_combo.addItems(["随机森林 (RF)", "XGBoost (XGB)"])
         self.model_combo.setMinimumHeight(30)
+        # 添加一个信号连接，当模型选择改变时调整置信度
+        self.model_combo.currentIndexChanged.connect(self.adjust_confidence_threshold)
         model_layout.addWidget(QLabel("选择模型:"))
         model_layout.addWidget(self.model_combo)
         model_group.setLayout(model_layout)
@@ -225,6 +227,22 @@ class AudioEventAnalyzer(QMainWindow):
         canvas = FigureCanvas(figure)
         canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         return canvas
+        
+    def adjust_confidence_threshold(self):
+        """根据选择的模型自动调整置信度阈值"""
+        # 获取当前选中的模型
+        current_model = self.model_combo.currentText()
+        
+        # 根据模型类型设置不同的默认置信度阈值
+        if "XGB" in current_model:
+            # XGBoost模型使用较高的置信度阈值
+            self.confidence.setValue(0.8)
+        else:
+            # 随机森林模型使用较低的置信度阈值
+            self.confidence.setValue(0.6)
+            
+        # 可以在这里显示一个简短的提示信息告知用户
+        self.result_text.append(f"已根据{current_model}模型特性，将置信度阈值调整为{self.confidence.value()}")
         
     def load_audio_file(self):
         dialog = QFileDialog()
