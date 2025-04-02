@@ -32,7 +32,7 @@ class AudioEventAnalyzer(QMainWindow):
         width = int(screen.width() * 0.8)
         height = int(screen.height() * 0.8)
         self.setGeometry(0, 0, width, height)
-        sasds
+        
         # 将窗口移动到屏幕中央
         self.move(int((screen.width() - width) / 2),
                  int((screen.height() - height) / 2))
