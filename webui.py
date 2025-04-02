@@ -3,13 +3,10 @@ import librosa
 import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
-import soundfile as sf
 import os
-from utils.feature_extract import extract_features
 from events_guess_only_ambient import predict_audio_events
 import tempfile
 import matplotlib
-import io
 matplotlib.use('Agg')  
 
 # 设置matplotlib样式
