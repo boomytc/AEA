@@ -3,10 +3,9 @@ import numpy as np
 import librosa
 import joblib
 import soundfile as sf
-from typing import List, Tuple, Dict, Union, Any
+from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor
 from utils.feature_extract import extract_features
-import sys
 import time  
 import io
 import xgboost as xgb

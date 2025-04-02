@@ -5,11 +5,11 @@ from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
 import joblib
 import librosa
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 import xgboost as xgb
-from utils.feature_extract import extract_features, extract_features_with_segments
+from utils.feature_extract import extract_features
 import soundfile as sf
-from typing import List, Tuple, Dict
+from typing import Tuple
 import logging
 import multiprocessing
 import time  
