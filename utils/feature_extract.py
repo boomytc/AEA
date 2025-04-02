@@ -75,7 +75,7 @@ def extract_features(audio_input: Union[str, io.BytesIO], n_mfcc: int = 13, n_me
         contrast_mean = np.mean(contrast, axis=1)
         contrast_std = np.std(contrast, axis=1)
 
-        # 4. 提取零交叉率（作为音高的替代特征）
+        # 4. 提取零交叉率
         # print("提取零交叉率...")
         zcr = librosa.feature.zero_crossing_rate(
             y,
@@ -84,7 +84,7 @@ def extract_features(audio_input: Union[str, io.BytesIO], n_mfcc: int = 13, n_me
         zcr_mean = np.mean(zcr)
         zcr_std = np.std(zcr)
         
-        # 5. 提取RMS能量（作为响度的替代特征）
+        # 5. 提取RMS能量
         # print("提取RMS能量...")
         rms = librosa.feature.rms(
             y=y,
@@ -93,12 +93,35 @@ def extract_features(audio_input: Union[str, io.BytesIO], n_mfcc: int = 13, n_me
         rms_mean = np.mean(rms)
         rms_std = np.std(rms)
         
+        # 6. 提取光谱质心 (Spectral Centroid)
+        # print("提取光谱质心...")
+        centroid = librosa.feature.spectral_centroid(
+            y=y, 
+            sr=sr,
+            hop_length=hop_length,
+            n_fft=n_fft
+        )
+        centroid_mean = np.mean(centroid)
+        centroid_std = np.std(centroid)
+
+        # 7. 提取光谱带宽 (Spectral Bandwidth)
+        # print("提取光谱带宽...")
+        bandwidth = librosa.feature.spectral_bandwidth(
+            y=y, 
+            sr=sr,
+            hop_length=hop_length,
+            n_fft=n_fft
+        )
+        bandwidth_mean = np.mean(bandwidth)
+        bandwidth_std = np.std(bandwidth)
+        
         # 合并所有特征
         features = np.concatenate([
             mfcc_mean, mfcc_std,
             mel_mean, mel_std,
             contrast_mean, contrast_std,
-            [zcr_mean, zcr_std, rms_mean, rms_std]
+            [zcr_mean, zcr_std, rms_mean, rms_std],
+            [centroid_mean, centroid_std, bandwidth_mean, bandwidth_std] # 添加新特征
         ])
         
         # print("特征提取完成")
