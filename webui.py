@@ -78,6 +78,9 @@ def main():
     # 转换为代码中使用的模型类型
     model_code_type = "xgb" if "XGBoost" in model_type else "rf"
     
+    # 根据模型类型设置默认置信度阈值
+    default_confidence = 0.8 if model_code_type == "xgb" else 0.6
+    
     # 添加无人声音频处理选项
     use_ambient_only = st.sidebar.checkbox(
         "仅使用无人声部分进行检测",
@@ -115,7 +118,7 @@ def main():
         "置信度阈值",
         min_value=0.0,
         max_value=1.0,
-        value=0.6,
+        value=default_confidence,
         step=0.05,
         help="事件检测的置信度阈值"
     )
