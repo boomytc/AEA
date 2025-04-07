@@ -2,12 +2,12 @@ import os
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
-from sklearn.preprocessing import StandardScaler
 import joblib
 import librosa
 from concurrent.futures import ProcessPoolExecutor
 import xgboost as xgb
 from utils.feature_extract import extract_features
+from utils.feature_preprocessing import preprocess_features
 import soundfile as sf
 from typing import Tuple
 import logging
@@ -117,12 +117,11 @@ def prepare_dataset(data_list_file: str) -> Tuple[np.ndarray, np.ndarray, object
     X, y = load_dataset_from_file(data_list_file)
     
     # 标准化特征
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
-    # 保存标准化器
-    os.makedirs("models", exist_ok=True)
-    joblib.dump(scaler, "models/feature_scaler_segments.pkl")
+    X_scaled, scaler = preprocess_features(
+        features=X,
+        save_path="models/feature_scaler_segments.pkl",
+        fit_scaler=True
+    )
     
     return X_scaled, y, scaler
 
