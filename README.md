@@ -7,6 +7,7 @@
 
 - [x] 模型训练
   - [x] 使用xgboost进行分类训练模型
+  - [x] 抽离特征预处理模块为独立功能
   - [ ] 优化模型参数
   - [ ] 添加模型评估指标
 
@@ -348,13 +349,16 @@ AEA/
 │   └── data_list.txt    # 数据列表（文件路径和标签）
 ├── models/              # 保存训练好的模型
 ├── utils/               # 工具函数
-│   ├── feature_extract.py  # 特征提取模块
-│   └── audio_separator.py  # 音频分离模块
+│   ├── feature_extract.py     # 特征提取模块
+│   ├── feature_preprocessing.py # 特征预处理模块
+│   ├── audio_separator.py     # 音频分离模块
+│   └── README.md              # 工具模块说明文档
 ├── tools/               # 构建和打包工具
 ├── README.md            # 项目说明文档
 ├── requirements.txt     # 依赖库列表
-├── train.py             # 随机森林模型训练脚本
+├── train_randomforest.py # 随机森林模型训练脚本
 ├── train_xgboost.py     # XGBoost模型训练脚本
+├── train.sh             # 统一训练脚本（支持选择模型类型）
 ├── events_guess.py      # 事件预测模块
 ├── events_guess_only_ambient.py # 仅使用无人声部分的事件预测模块
 └── webui.py             # Web界面
@@ -449,14 +453,33 @@ Web界面功能：
 
 本节提供各个脚本的实际使用示例。
 
-### train.py - 模型训练
+### 模型训练
 
+使用统一训练脚本：
 ```bash
-# 训练模型
-python train.py
+# 赋予执行权限
+chmod +x train.sh
+
+# 训练随机森林模型
+./train.sh -m rf
+
+# 训练XGBoost模型
+./train.sh -m xgb
+
+# 训练所有模型
+./train.sh -m all
 ```
 
-train.py脚本会：
+或者使用单独的训练脚本：
+```bash
+# 训练随机森林模型
+python train_randomforest.py
+
+# 训练XGBoost模型
+python train_xgboost.py
+```
+
+训练脚本会：
 - 从 datasets/data_list.txt 加载数据
 - 使用多进程并行提取音频特征
 - 训练随机森林分类器模型
@@ -714,22 +737,27 @@ streamlit run webui.py
    - 梅尔频谱图
    - 检测到的事件列表
 
-### 最新更新 (2025年3月3日)
+### 最新更新 (2025年4月7日)
 
-1. **XGBoost模型Web界面集成**：
+1. **特征预处理模块重构**：
+   - 新增`utils/feature_preprocessing.py`模块，将特征标准化功能抽离为独立组件
+   - 重构训练脚本，使用新的特征预处理模块，提高代码复用性和可维护性
+   - 添加统一的训练脚本`train.sh`，支持选择不同模型类型进行训练
+
+2. **XGBoost模型Web界面集成**：
    - 修复了Web界面中使用XGBoost模型时的关键问题
    - 解决了使用XGBoost模型在Web界面中出现的"list indices must be integers or slices, not str"错误
    - 增强了模型自动选择逻辑，根据选择的模型类型自动设置正确的模型路径
 
-2. **NumPy字符串处理优化**：
+3. **NumPy字符串处理优化**：
    - 改进了analyze_audio_segment函数，确保正确处理NumPy字符串类型的标签
    - 添加了类型转换保障，确保从XGBoost模型获取预测标签时能正确处理不同类型
 
-3. **错误处理增强**：
+4. **错误处理增强**：
    - 添加了更详细的异常捕获和错误信息展示
    - 改进了错误报告机制，便于调试和问题定位
 
-4. **模型路径智能选择**：
+5. **模型路径智能选择**：
    - Web界面现在能根据所选模型类型自动选择合适的模型文件
    - 支持自定义模型路径覆盖默认设置
 

@@ -22,7 +22,20 @@
 - `extract_features(audio_input, n_mfcc=13, n_mels=40)` - 从单个音频提取特征
 - `extract_features_with_segments(audio_file, segment_duration=1.0)` - 将音频分段并提取特征
 
-### 2. `audio_separator.py`
+### 2. `feature_preprocessing.py`
+
+提供特征预处理功能，主要用于特征标准化，确保不同训练和预测脚本中特征处理的一致性。
+
+**主要功能：**
+- 特征标准化（使用StandardScaler）
+- 保存和加载特征缩放器（scaler）
+- 支持增量式特征处理
+
+**主要函数：**
+- `preprocess_features(features, scaler_path, save_path, fit_scaler)` - 标准化特征并可选择性地保存scaler
+- 支持在训练阶段拟合scaler并保存，在预测阶段直接加载使用
+
+### 3. `audio_separator.py`
 
 基于Demucs库的音频分离工具，用于将音频分离为不同的声部（如人声、鼓声、贝斯等）。
 
@@ -74,9 +87,10 @@ separate_audio(
 
 这些工具模块被AEA系统的其他组件使用：
 
-1. `events_guess.py` 使用 `feature_extract.py` 提取特征用于音频事件检测
-2. `gui.py` 通过这些工具提供图形界面的音频分析功能
-3. Web界面组件使用这些工具进行在线音频分析
+1. `train_randomforest.py` 和 `train_xgboost.py` 使用 `feature_preprocessing.py` 进行特征标准化
+2. `events_guess.py` 使用 `feature_extract.py` 提取特征用于音频事件检测
+3. `gui.py` 通过这些工具提供图形界面的音频分析功能
+4. Web界面组件使用这些工具进行在线音频分析
 
 ## 技术细节
 
@@ -88,6 +102,8 @@ separate_audio(
 
 ## 最近更新
 
+- 新增了`feature_preprocessing.py`模块，将特征标准化功能抽离为独立组件
+- 优化了特征预处理流程，确保训练和预测阶段的一致性
 - 增加了光谱质心和光谱带宽特征提取功能
 - 优化了XGBoost模型的特征处理，解决了numpy字符串类型转换问题
 - 增强了错误处理和异常信息展示
