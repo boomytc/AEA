@@ -117,9 +117,15 @@ def signal_handler(sig, frame):
     print("\n收到中断信号，正在优雅退出...")
     shutdown_event.set()
     
-# 注册信号处理函数
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
+# 只在主线程中注册信号处理函数
+# 这样可以避免在Streamlit等非主线程环境中出错
+try:
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+except ValueError:
+    # 如果不在主线程中，忽略错误
+    pass
 
 # 检测可用的GPU数量
 def get_available_gpus():
