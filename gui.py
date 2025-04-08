@@ -427,8 +427,8 @@ class AudioEventAnalyzer(QMainWindow):
         # 获取颜色映射
         unique_event_types = sorted(list(set(e[0] for e in self.detected_events)))
         # 使用更鲜明的颜色映射，例如 'tab10' 或 'Set3'
-        colors = plt.cm.get_cmap('tab10', len(unique_event_types)) 
-        color_map = {etype: colors(i) for i, etype in enumerate(unique_event_types)}
+        colors = plt.colormaps['tab10'](np.linspace(0, 1, len(unique_event_types)))
+        color_map = {etype: colors[i] for i, etype in enumerate(unique_event_types)}
 
         # 获取 y 轴范围用于定位文本
         ymin, ymax = self.waveform_ax.get_ylim()
