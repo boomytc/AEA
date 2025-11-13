@@ -6,6 +6,7 @@ soundfile
 scipy
 numba
 streamlit
+pyside6
 matplotlib
 xgboost
 demucs
