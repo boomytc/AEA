@@ -1,4 +1,5 @@
 librosa
+torchcodec
 numpy
 scikit-learn
 joblib
