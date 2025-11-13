@@ -1,5 +1,7 @@
-librosa
+torch
+torchaudio
 torchcodec
+librosa
 numpy
 scikit-learn
 joblib
