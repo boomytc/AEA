@@ -5,15 +5,15 @@ import librosa.display
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                           QHBoxLayout, QPushButton, QFileDialog, QLabel, 
-                           QComboBox, QGroupBox, QTextEdit, 
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+                           QHBoxLayout, QPushButton, QFileDialog, QLabel,
+                           QComboBox, QGroupBox, QTextEdit,
                            QScrollArea, QDoubleSpinBox, QSizePolicy,
-                           QGridLayout, QFrame, QSlider, QStyle, 
+                           QGridLayout, QFrame, QSlider, QStyle,
                            QCheckBox)
-from PyQt6.QtCore import Qt, QUrl 
-from PyQt6.QtGui import QFont
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QFont
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from events_guess import predict_audio_events
 
 import matplotlib
