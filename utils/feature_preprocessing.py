@@ -23,6 +23,8 @@ def preprocess_features(
         标准化后的特征和标准化器对象
     """
     # 检查是否需要加载已有标准化器
+    if not fit_scaler and (not scaler_path or not os.path.exists(scaler_path)):
+        raise FileNotFoundError("标准化器文件不存在，请先训练模型或指定正确的标准化器路径")
     if scaler_path and os.path.exists(scaler_path) and not fit_scaler:
         print(f"加载标准化器: {scaler_path}")
         scaler = joblib.load(scaler_path)

@@ -181,7 +181,10 @@ def main():
                 status_text = status_placeholder.text("正在加载音频...")
 
                 # 创建临时文件
-                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+                file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+                if file_ext not in [".wav", ".mp3", ".flac", ".ogg", ".m4a"]:
+                    file_ext = ".wav"
+                with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as temp_audio:
                     # 保存上传的文件到临时文件
                     temp_audio.write(uploaded_file.read())
                     temp_audio_path = temp_audio.name

@@ -227,10 +227,16 @@ def get_separation_params():
         params["model_name"] = "htdemucs"
         
         # 设备选择
-        is_cuda = torch.cuda.is_available()
+        device_options = []
+        if torch.cuda.is_available():
+            device_options.append("cuda")
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            device_options.append("mps")
+        device_options.append("cpu")
         params["device"] = st.radio(
-            "设备", ["cuda", "cpu"], 
-            index=0 if is_cuda else 1,
+            "设备",
+            device_options,
+            index=0,
             horizontal=True
         )
         

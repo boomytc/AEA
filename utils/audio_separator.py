@@ -34,7 +34,7 @@ def separate_audio(
         track_path: 音频文件路径
         output_dir: 输出目录
         model_name: 预训练模型名称
-        device: 使用的设备 (cuda 或 cpu)
+        device: 使用的设备 (cuda、cpu 或 mps)
         shifts: 随机移位数量 (增加质量但需要更多时间)
         overlap: 分割之间的重叠
         no_split: 不将音频分成块处理，可能会占用大量内存
@@ -412,7 +412,7 @@ def main():
     parser.add_argument("input", help="要分离的音频文件路径或包含音频文件的目录路径")
     parser.add_argument("-o", "--output", default="separated", help="输出目录")
     parser.add_argument("-n", "--model", default="htdemucs", help="预训练模型名称")
-    parser.add_argument("-d", "--device", default="cuda", choices=["cuda", "cpu"], help="使用的设备")
+    parser.add_argument("-d", "--device", default="cuda", choices=["cuda", "cpu", "mps"], help="使用的设备")
     parser.add_argument("--shifts", type=int, default=8, help="随机移位数量，增加质量但需要更多时间")
     parser.add_argument("--overlap", type=float, default=0.5, help="分割之间的重叠")
     parser.add_argument("--no-split", action="store_true", help="不将音频分成块处理，可能会占用大量内存")

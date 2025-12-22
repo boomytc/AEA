@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import librosa
 import joblib
@@ -9,6 +10,41 @@ from utils.feature_extract import extract_features
 import time  
 import io
 import xgboost as xgb
+
+DEFAULT_RF_MODEL_PATH = "models/audio_event_model_segments.pkl"
+DEFAULT_XGB_MODEL_PATH = "models/audio_event_model_xgboost.pkl"
+DEFAULT_SCALER_PATH = "models/feature_scaler_segments.pkl"
+
+def resolve_model_paths(model_type, model_path, scaler_path):
+    if not model_path:
+        model_path = DEFAULT_XGB_MODEL_PATH if model_type == "xgb" else DEFAULT_RF_MODEL_PATH
+    if not scaler_path:
+        scaler_path = DEFAULT_SCALER_PATH
+    return model_path, scaler_path
+
+def load_model_and_scaler(model_type, model_path, scaler_path):
+    model_path, scaler_path = resolve_model_paths(model_type, model_path, scaler_path)
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"模型文件不存在: {model_path}，请先训练模型或检查路径")
+    if not os.path.exists(scaler_path):
+        raise FileNotFoundError(f"标准化器文件不存在: {scaler_path}，请先训练模型或检查路径")
+
+    model_data = joblib.load(model_path)
+    scaler = joblib.load(scaler_path)
+
+    if model_type == "xgb":
+        if not isinstance(model_data, dict) or "model" not in model_data or "label_mapping" not in model_data:
+            raise ValueError("XGBoost模型文件格式不正确或模型类型不匹配")
+    elif model_type == "rf":
+        if not hasattr(model_data, "predict") or not hasattr(model_data, "predict_proba"):
+            raise ValueError("随机森林模型文件格式不正确或模型类型不匹配")
+    else:
+        raise ValueError(f"不支持的模型类型: {model_type}")
+
+    if not hasattr(scaler, "transform"):
+        raise ValueError("标准化器文件格式不正确或未加载成功")
+
+    return model_data, scaler
 
 def analyze_audio_segment(segment, sr, model_data, scaler, segment_start_time, model_type="rf"):
     """
@@ -125,22 +161,24 @@ def predict_audio_events(
         检测到的事件列表，每个事件包含：(事件类型, 开始时间, 结束时间, 置信度)
     """
     process_start_time = time.time()  # 开始计时
-    
+
+    if window_size <= 0:
+        raise ValueError("窗口大小必须大于0")
+    if hop_length <= 0:
+        raise ValueError("滑动步长必须大于0")
+    if confidence_threshold < 0 or confidence_threshold > 1:
+        raise ValueError("置信度阈值必须在0到1之间")
+
     # 检查文件是否存在
     if not os.path.exists(audio_file):
-        print(f"错误：音频文件不存在 {audio_file}")
-        return []
-    
-    # 加载模型和标准化器
-    if not os.path.exists(model_path) or not os.path.exists(scaler_path):
-        print("错误：模型文件或标准化器文件不存在")
-        return []
-    
-    model_data = joblib.load(model_path)
-    scaler = joblib.load(scaler_path)
+        raise FileNotFoundError(f"音频文件不存在: {audio_file}")
+
+    model_data, scaler = load_model_and_scaler(model_type, model_path, scaler_path)
     
     # 读取音频文件
     y, sr = librosa.load(audio_file, sr=None)
+    if len(y) == 0:
+        raise ValueError("音频数据为空或无法读取")
     duration = librosa.get_duration(y=y, sr=sr)
     print(f"开始分析音频文件: {audio_file}")
     print(f"音频长度: {duration:.2f}秒")
@@ -149,27 +187,38 @@ def predict_audio_events(
     # 计算窗口和步长的样本数
     window_samples = int(window_size * sr)
     hop_samples = int(hop_length * sr)
+    if window_samples <= 0 or hop_samples <= 0:
+        raise ValueError("窗口大小或滑动步长过小，导致采样点数为0")
+    total_samples = len(y)
     
     # 创建线程池
     with ThreadPoolExecutor() as executor:
         # 提交所有分析任务
         futures = []
-        for start_sample in range(0, len(y) - window_samples, hop_samples):
-            segment_start_time = start_sample / sr
+        if total_samples < window_samples:
+            start_samples = [0]
+        else:
+            start_samples = range(0, total_samples - window_samples + 1, hop_samples)
+
+        for start_sample in start_samples:
             segment = y[start_sample:start_sample + window_samples]
+            if len(segment) == 0:
+                continue
+            segment_start_time = start_sample / sr
+            segment_end_time = (start_sample + len(segment)) / sr
             future = executor.submit(analyze_audio_segment, segment, sr, model_data, scaler, segment_start_time, model_type)
-            futures.append((segment_start_time, future))
+            futures.append((segment_start_time, segment_end_time, future))
         
         # 收集预测结果
         window_predictions = []
-        for segment_start_time, future in futures:
+        for segment_start_time, segment_end_time, future in futures:
             try:
                 prediction, confidence = future.result()
-                print(f"时间窗口 {segment_start_time:.1f}s - {segment_start_time + window_size:.1f}s:")
+                print(f"时间窗口 {segment_start_time:.1f}s - {segment_end_time:.1f}s:")
                 print(f"  预测事件: {prediction}")
                 print(f"  置信度: {confidence:.2%}")
                 if confidence >= confidence_threshold:
-                    window_predictions.append((prediction, segment_start_time, segment_start_time + window_size, confidence))
+                    window_predictions.append((prediction, segment_start_time, segment_end_time, confidence))
             except Exception as e:
                 print(f"处理时间窗口 {segment_start_time:.1f}s 时出错: {str(e)}")
     
@@ -207,14 +256,18 @@ def main():
         else:  # xgb
             model_path = "models/audio_event_model_xgboost.pkl"
     
-    predict_audio_events(
-        args.audio_file,
-        window_size=args.window_size,
-        hop_length=args.hop_length,
-        confidence_threshold=args.confidence,
-        model_path=model_path,
-        model_type=args.model_type
-    )
+    try:
+        predict_audio_events(
+            args.audio_file,
+            window_size=args.window_size,
+            hop_length=args.hop_length,
+            confidence_threshold=args.confidence,
+            model_path=model_path,
+            model_type=args.model_type
+        )
+    except Exception as e:
+        print(f"检测失败: {str(e)}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
