@@ -10,7 +10,7 @@ import librosa.display
 import tempfile
 import shutil
 from datetime import datetime
-from utils.audio_separator import get_available_gpus, get_recommended_threads
+from utils.audio_separator import get_recommended_threads
 
 matplotlib.use('Agg')
 

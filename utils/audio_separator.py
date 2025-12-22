@@ -8,7 +8,6 @@ import threading
 import multiprocessing
 import queue
 import signal
-import sys
 
 def separate_audio(
     track_path,
