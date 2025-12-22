@@ -5,6 +5,7 @@ __pycache__/
 data/txt.txt
 data/list_train.txt
 data/list_label.txt
+AGENT.md
 *.pyc
 offline-packages/
 .*/
