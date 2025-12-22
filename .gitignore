@@ -1,11 +1,7 @@
-models/audio_event_model_segments.pkl
-models/feature_scaler_segments.pkl
+*.pkl
 __pycache__/
 *.wav
-data/txt.txt
-data/list_train.txt
-data/list_label.txt
 AGENT.md
 *.pyc
-offline-packages/
 .*/
+.DS_Store
