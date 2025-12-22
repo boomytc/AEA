@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QFont
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
-from events_guess import predict_audio_events
+from event_guess_cli import predict_audio_events
 
 import matplotlib
 matplotlib.use('QtAgg') 

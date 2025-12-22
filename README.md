@@ -109,7 +109,7 @@
 4. **应用于事件检测**：
    - 在事件检测前先进行音频分离，仅使用无人声部分进行分析
    - 这种方法可以有效减少人声对事件检测的干扰
-   - 通过`events_guess_only_ambient.py`中的函数实现无缝集成
+   - 通过`event_guess_cli.py`的无人声模式实现无缝集成
 
 ### 3. 模型训练与优化
 
@@ -167,7 +167,7 @@
 
 ### 4. 事件检测与预测
 
-事件检测是系统的核心功能，主要在`events_guess.py`和`events_guess_only_ambient.py`中实现：
+事件检测是系统的核心功能，主要在`event_guess_cli.py`中实现：
 
 #### 4.1 滑动窗口分析
 
@@ -359,8 +359,7 @@ AEA/
 ├── train_randomforest.py # 随机森林模型训练脚本
 ├── train_xgboost.py     # XGBoost模型训练脚本
 ├── train.sh             # 统一训练脚本（支持选择模型类型）
-├── events_guess.py      # 事件预测模块
-├── events_guess_only_ambient.py # 仅使用无人声部分的事件预测模块
+├── event_guess_cli.py   # 事件预测CLI（支持无人声模式）
 └── webui.py             # Web界面
 ```
 
@@ -409,7 +408,7 @@ python train_xgboost.py
 #### 3.1 使用Python API进行预测
 
 ```python
-from events_guess import predict_audio_events
+from event_guess_cli import predict_audio_events
 
 # 使用随机森林模型预测
 events_rf = predict_audio_events(
@@ -495,20 +494,23 @@ X_scaled, y, scaler = prepare_dataset("datasets/data_list.txt")
 model = train_model(X_scaled, y, model_path="models/audio_event_model_segments.pkl")
 ```
 
-### events_guess.py - 事件预测
+### event_guess_cli.py - 事件预测
 
 ```bash
 # 使用随机森林模型（默认）
-python events_guess.py 音频文件.wav
+python event_guess_cli.py 音频文件.wav
 
 # 使用XGBoost模型
-python events_guess.py 音频文件.wav --model_type xgb
+python event_guess_cli.py 音频文件.wav --model_type xgb
 
 # 指定自定义模型路径
-python events_guess.py 音频文件.wav --model_type xgb --model_path models/my_xgboost_model.pkl
+python event_guess_cli.py 音频文件.wav --model_type xgb --model_path models/my_xgboost_model.pkl
 
 # 自定义分析参数
-python events_guess.py 音频文件.wav --window_size 2.5 --hop_length 1.2 --confidence 0.7
+python event_guess_cli.py 音频文件.wav --window_size 2.5 --hop_length 1.2 --confidence 0.7
+
+# 使用无人声模式
+python event_guess_cli.py 音频文件.wav --ambient-only
 ```
 
 参数说明：
@@ -613,7 +615,7 @@ python events_guess.py 音频文件.wav --window_size 2.5 --hop_length 1.2 --con
    - 实现了模型保存和加载机制，便于后续使用
 
 2. **预测功能增强**：
-   - 更新了`events_guess.py`脚本，支持两种模型类型的选择
+   - 更新了`event_guess_cli.py`脚本，支持两种模型类型的选择
    - 添加了命令行参数(`--model_type`)，允许用户灵活选择模型
    - 改进了预测逻辑，支持不同模型的输出格式和置信度计算
 

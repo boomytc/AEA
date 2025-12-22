@@ -88,7 +88,7 @@ separate_audio(
 这些工具模块被AEA系统的其他组件使用：
 
 1. `train_randomforest.py` 和 `train_xgboost.py` 使用 `feature_preprocessing.py` 进行特征标准化
-2. `events_guess.py` 使用 `feature_extract.py` 提取特征用于音频事件检测
+2. `event_guess_cli.py` 使用 `feature_extract.py` 提取特征用于音频事件检测
 3. `gui.py` 通过这些工具提供图形界面的音频分析功能
 4. Web界面组件使用这些工具进行在线音频分析
 

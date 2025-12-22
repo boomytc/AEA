@@ -4,7 +4,7 @@ import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from events_guess_only_ambient import predict_audio_events
+from event_guess_cli import predict_audio_events
 import tempfile
 import matplotlib
 matplotlib.use('Agg')  
