@@ -89,7 +89,7 @@
 
 ### 2. 音频分离技术
 
-系统使用Demucs音频分离技术，将音频分离为人声和非人声部分，主要实现在`utils/audio_separator.py`和`audio_separate.py`中：
+系统使用Demucs音频分离技术，将音频分离为人声和非人声部分，主要实现在`utils/audio_separator.py`和`separate_audio_cli.py`中：
 
 1. **Demucs模型**：
    - 默认使用htdemucs预训练模型
