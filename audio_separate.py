@@ -1,5 +1,7 @@
+import argparse
 import os
 import shutil
+import sys
 from utils.audio_separator import separate_audio
 
 def move_files_from_model_dir(track_path, output_dir, model_name, save_file=None):
@@ -119,28 +121,68 @@ def move_files_from_model_dir(track_path, output_dir, model_name, save_file=None
         print(f"未找到要移动的文件在: {model_dir}")
         return False
 
-# 分离人声和背景音乐
-track_path = "datasets/test/test_mixture_466.wav"
-output_dir = "test_separated"
-model_name = "htdemucs"
-save_file = "no_vocals" # "vocals" or "no_vocals"
+def select_device(requested_device):
+    if requested_device and requested_device != "auto":
+        return requested_device
 
-# 调用原始的separate_audio函数
-separate_result = separate_audio(
-    track_path,
-    output_dir=output_dir,
-    model_name=model_name,
-    device="cuda",
-    two_stems="vocals",  # 仅分离人声和伴奏
-    verbose=True,
-    filename="{track}_{stem}.{ext}"  # 设置输出文件名格式
-)
+    try:
+        import torch
+    except Exception:
+        return "cpu"
 
-# 如果分离成功，则进行后处理
-if separate_result:
-    # 将文件从模型子目录移动到目标目录
-    # move_result = move_files_from_model_dir(track_path, output_dir, model_name, save_file)
-    move_result = move_files_from_model_dir(track_path, output_dir, model_name)
+    if torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+def main():
+    parser = argparse.ArgumentParser(description="音频分离脚本 (Demucs)")
+    parser.add_argument("input", help="音频文件路径")
+    parser.add_argument("-o", "--output", default="test_separated", help="输出目录")
+    parser.add_argument("-n", "--model", default="htdemucs", help="预训练模型名称")
+    parser.add_argument(
+        "-d",
+        "--device",
+        default="auto",
+        choices=["auto", "cuda", "cpu", "mps"],
+        help="使用的设备 (auto 将自动选择)"
+    )
+    parser.add_argument(
+        "--save-file",
+        choices=["vocals", "no_vocals", "all"],
+        default="all",
+        help="仅保留指定声部文件"
+    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="显示详细输出")
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.input):
+        print(f"错误：音频文件不存在: {args.input}")
+        sys.exit(1)
+
+    device = select_device(args.device)
+    save_file = None if args.save_file == "all" else args.save_file
+
+    separate_result = separate_audio(
+        args.input,
+        output_dir=args.output,
+        model_name=args.model,
+        device=device,
+        two_stems="vocals",  # 仅分离人声和伴奏
+        verbose=args.verbose,
+        filename="{track}_{stem}.{ext}"  # 设置输出文件名格式
+    )
+
+    if not separate_result:
+        print("音频分离失败")
+        sys.exit(1)
+
+    move_result = move_files_from_model_dir(args.input, args.output, args.model, save_file)
     if move_result:
-        print(f"最终结果保存在: {output_dir}")
+        print(f"最终结果保存在: {args.output}")
+    else:
+        sys.exit(1)
 
+if __name__ == "__main__":
+    main()
